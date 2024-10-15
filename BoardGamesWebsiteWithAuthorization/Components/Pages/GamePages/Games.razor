@@ -8,6 +8,8 @@
 @inject IDataAccess _data
 @inject IConfiguration _config
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
 
 <style>
     /* Existing styles... */
@@ -42,6 +44,18 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Box shadow for depth */
     }
 
+    .plus-card {
+        border: 1px dashed #007bff; /* Dashed border to indicate a clickable action */
+        background-color: #f9f9f9;
+        color: #007bff;
+        font-size: 50px;
+        font-weight: bold;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
     /* Add this class for logged-out state */
     .no-actions {
         padding-top: 0; /* Remove padding when not logged in */
@@ -55,7 +69,7 @@
         object-fit: contain; /* Dopasowanie obrazka bez przycinania */
         border-radius: 5px;
         margin-bottom: 10px;
-        background-color: #f0f0f0; /* Opcjonalnie: dodaj tło, jeśli obrazek nie wypełni całej przestrzeni */
+        background-color: white; /* Ensure the background behind images is white */
     }
 
 
@@ -138,8 +152,9 @@
 {
     <a href="/games/create" class="btn btn-primary mb-3">Add New Game</a>
 }
-<button class="btn btn-primary mb-3 ml-2" @onclick="ShowCategoriesModal">Choose Categories</button>
+<button class="btn btn-primary mb-3" style="margin-left: 5px;" @onclick="ShowCategoriesModal">Choose Categories</button>
 <button class="btn btn-primary mb-3" @onclick="ToggleSortOptions">Sort By</button>
+
 
 @if (showSortOptions)
 {
@@ -214,8 +229,6 @@ else
                             This game is an expansion for <strong>"@g.MainGameName"</strong>
                         </div>
                     }
-
-
                 </div>
 
                 <!-- Conditionally render the edit/delete buttons if the user is logged in -->
@@ -227,12 +240,15 @@ else
                     </div>
                 }
             </div>
-
         }
+
+        <!-- Add the new plus button at the end of the game list -->
+        <div class="game-card plus-card" style="display: flex; align-items: center; justify-content: center; cursor: pointer;" @onclick="NavigateToCreatePage">
+            <div style="font-size: 50px; color: #007bff; font-weight: bold;">
+                +
+            </div>
+        </div>
     </div>
-
-
-
 
 }
 
@@ -319,10 +335,10 @@ else
         isLoggedIn = authState.User.Identity.IsAuthenticated;
 
         string sql = @"
-    SELECT c.CategoryName, COUNT(gc.IdGame) AS GameCount
-    FROM Categories c
-    LEFT JOIN Game_Category gc ON c.Id = gc.IdCategory
-    GROUP BY c.CategoryName";
+        SELECT c.CategoryName, COUNT(gc.IdGame) AS GameCount
+        FROM Categories c
+        LEFT JOIN Game_Category gc ON c.Id = gc.IdCategory
+        GROUP BY c.CategoryName";
 
         var categoryResults = await _data.LoadData<CategoryWithCount, dynamic>(sql, new { }, _config.GetConnectionString("default"));
         allCategories = categoryResults.Select(c => c.CategoryName).ToList();
@@ -330,15 +346,15 @@ else
 
         // Query to load games with DLC check
         string gamesSql = @"
-SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
-       CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
-       (SELECT MainGame.GameName FROM games AS MainGame
+        SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
+        CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
+        (SELECT MainGame.GameName FROM games AS MainGame
         JOIN DLC ON MainGame.Id = DLC.MainGameId
         WHERE DLC.DLCGameId = g.Id) AS MainGameName
-FROM games g
-LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
-LEFT JOIN Categories c ON gc.IdCategory = c.Id
-GROUP BY g.Id";
+        FROM games g
+        LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
+        LEFT JOIN Categories c ON gc.IdCategory = c.Id
+        GROUP BY g.Id";
 
         games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { }, _config.GetConnectionString("default"));
 
@@ -492,6 +508,10 @@ GROUP BY g.Id";
         }
     }
 
+    private void NavigateToCreatePage()
+    {
+        NavigationManager.NavigateTo("/games/create");
+    }
 
 
     // Get CSS class for sorting columns
