@@ -1,0 +1,89 @@
+﻿@page "/users"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models;
+@using Microsoft.Extensions.Configuration
+@inject IDataAccess _data
+@inject IConfiguration _config
+
+<PageTitle>Users</PageTitle>
+
+<h3>Users</h3>
+
+<button class="btn btn-primary" @onclick="AddData">Add data</button>
+<button class="btn btn-warning" @onclick="UpdateData">Update data</button>
+<button class="btn btn-danger" @onclick="DeleteData">Delete data</button>
+
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @foreach (var u in users)
+    {
+        <p>
+            @u.Name @u.Surname
+        </p>
+    }
+}
+
+@code {
+    List<UserModel> users;
+
+    private async Task AddData()
+    {
+        string sql = "insert into users (Name, Surname, Age, UserName, EmailAdress, PhoneNumber, Adress, PrefferedLocalization, TypeOfAccount, PasswordHash, Login, UserDescription) values (@Name, @Surname, @Age, @UserName, @EmailAdress, @PhoneNumber, @Adress, @PrefferedLocalization, @TypeOfAccount, @PasswordHash, @Login, @UserDescription);";
+
+        await _data.SaveData(sql, new
+        {
+            Name = "Emilya",
+            Surname = "Davisa",
+            Age = 27,
+            UserName = "emily_davis23",
+            EmailAdress = "emily.davis@example23.com",
+            PhoneNumber = "789-123-454",
+            Adress = "321 Maple St",
+            PrefferedLocalization = "Boston",
+            TypeOfAccount = 0,
+            PasswordHash = "hashed_password_63",
+            Login = "edavis23",
+            UserDescription = "Avid fan of cooperative board games2."
+        }, _config.GetConnectionString("default"));
+
+        await OnInitializedAsync();
+    }
+
+    private async Task UpdateData()
+    {
+        string sql = "update users set Name = @Name where Surname = @Surname";
+
+        await _data.SaveData(sql, new
+        {
+            Name = "Julia",
+            Surname = "Davisa"
+        }, _config.GetConnectionString("default"));
+
+        await OnInitializedAsync();
+    }
+
+    private async Task DeleteData()
+    {
+        string sql = "delete from users where Name = @Name";
+
+        await _data.SaveData(sql, new
+        {
+            Name = "Julia"
+        }, _config.GetConnectionString("default"));
+
+        await OnInitializedAsync();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        string sql = "select * from users";
+        users = await _data.LoadData<UserModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+    }
+}

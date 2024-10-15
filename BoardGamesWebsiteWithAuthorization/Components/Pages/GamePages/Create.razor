@@ -1,0 +1,291 @@
+﻿@page "/games/create"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models
+@using Microsoft.Extensions.Configuration
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject NavigationManager Navigation
+
+<h3>Create Game</h3>
+
+<!-- Przycisk powrotu do strony gier -->
+<a href="/games" class="btn btn-secondary mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Games
+</a>
+
+<EditForm Model="@newGame" OnValidSubmit="AddData">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <!-- Dane gry -->
+    <div class="form-group">
+        <label>Game Name:</label>
+        <InputText @bind-Value="newGame.GameName" class="form-control" />
+        <ValidationMessage For="@(() => newGame.GameName)" />
+    </div>
+
+    <div class="form-group">
+        <label>Game Description:</label>
+        <InputTextArea @bind-Value="newGame.GameDescription" class="form-control" />
+        <ValidationMessage For="@(() => newGame.GameDescription)" />
+    </div>
+
+    <div class="form-group">
+        <label>Play Time (min):</label>
+        <InputNumber @bind-Value="newGame.PlayTime" class="form-control" />
+        <ValidationMessage For="@(() => newGame.PlayTime)" />
+    </div>
+
+    <div class="form-group">
+        <label>Publisher:</label>
+        <InputText @bind-Value="newGame.Publisher" class="form-control" />
+        <ValidationMessage For="@(() => newGame.Publisher)" />
+    </div>
+
+    <div class="form-group">
+        <label>Author:</label>
+        <InputText @bind-Value="newGame.Author" class="form-control" />
+        <ValidationMessage For="@(() => newGame.Author)" />
+    </div>
+
+    <!-- Kategoria gry -->
+    <div class="form-group">
+        <label>Category:</label>
+        <InputSelect @bind-Value="selectedCategoryId" multiple class="form-control">
+            @foreach (var category in categories)
+            {
+                <option value="@category.Id">@category.CategoryName</option>
+            }
+        </InputSelect>
+    </div>
+
+    <!-- Dodawanie obrazów gry -->
+    <h4>Images</h4>
+    @if (newImages != null && newImages.Any())
+    {
+        @foreach (var newImage in newImages)
+        {
+            <div class="mb-3">
+                <label for="newImageUrl" class="form-label">Image URL</label>
+                <InputText id="newImageUrl" class="form-control" @bind-Value="newImage.ImageUrl" />
+                <img src="@newImage.ImageUrl" alt="Game Image" class="img-thumbnail mt-2" style="max-width: 200px;" />
+                <button type="button" class="btn btn-danger mt-2" @onclick="() => RemoveNewImage(newImage)">Remove</button>
+
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" checked="@newImage.IsMain" @onchange="() => OnNewImageChanged(newImage)" />
+                    <label class="form-check-label" for="isMainNew">Set as Main Image</label>
+                </div>
+            </div>
+        }
+    }
+
+    <div style="margin-bottom: 8px;">
+        <button type="button" class="btn btn-success" @onclick="AddNewImage">Add New Image</button>
+    </div>
+
+    <!-- Przycisk do dodania informacji, że to DLC -->
+    <div class="form-group mt-4">
+        <button type="button" class="btn btn-success" @onclick="ToggleBaseGameInput">Require base game</button>
+    </div>
+
+    <!-- Pole do wpisania nazwy gry podstawowej -->
+    @if (isBaseGameRequired)
+    {
+        <div class="form-group mt-3">
+            <label>Base Game Name:</label>
+            <InputText @bind-Value="baseGameName" class="form-control" @oninput="OnBaseGameNameInput" />
+            <ValidationMessage For="@(() => baseGameName)" />
+
+            @if (!string.IsNullOrWhiteSpace(baseGameErrorMessage))
+            {
+                <div class="text-danger mt-2">@baseGameErrorMessage</div>
+            }
+
+            @if (suggestedGames != null && suggestedGames.Any())
+            {
+                <ul class="list-group mt-2">
+                    @foreach (var game in suggestedGames)
+                    {
+                        <li class="list-group-item" @onclick="() => SelectSuggestedGame(game.GameName)">
+                            @game.GameName
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
+    <!-- Przycisk przesyłania danych -->
+    <button type="submit" class="btn btn-primary mt-3">Submit</button>
+</EditForm>
+
+@code {
+    private GameModel newGame = new GameModel();
+    private List<GameImageModel> newImages = new List<GameImageModel>();
+    private List<CategoryModel> categories = new List<CategoryModel>();
+    private List<GameModel> allGames = new List<GameModel>(); // Lista wszystkich gier
+    private List<GameModel> suggestedGames = new List<GameModel>(); // Lista sugerowanych gier
+    private int selectedCategoryId;
+    private bool isBaseGameRequired = false; // Flaga do zarządzania widocznością pola dla gry podstawowej
+    private string baseGameName = string.Empty; // Pole do wpisania nazwy gry podstawowej
+    private string baseGameErrorMessage = string.Empty; // Message for base game validation
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Pobierz wszystkie kategorie
+        string sqlCategories = "SELECT * FROM Categories";
+        categories = await _data.LoadData<CategoryModel, dynamic>(sqlCategories, new { }, _config.GetConnectionString("default"));
+
+        // Pobierz wszystkie gry
+        await LoadAllGames();
+    }
+
+    private async Task LoadAllGames()
+    {
+        string sqlGames = "SELECT * FROM Games";
+        var games = await _data.LoadData<GameModel, dynamic>(sqlGames, new { }, _config.GetConnectionString("default"));
+        allGames = games.ToList();
+    }
+
+    private void OnBaseGameNameInput(ChangeEventArgs e)
+    {
+        baseGameName = e.Value.ToString();
+        if (!string.IsNullOrWhiteSpace(baseGameName))
+        {
+            // Check for suggested games
+            suggestedGames = allGames
+                .Where(game => game.GameName.IndexOf(baseGameName, StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToList();
+
+            // Check if the game exists in the database
+            var gameExists = suggestedGames.Any();
+            baseGameErrorMessage = gameExists ? string.Empty : "Game not found. Please enter a valid game name.";
+        }
+        else
+        {
+            suggestedGames.Clear();
+            baseGameErrorMessage = string.Empty;
+        }
+    }
+
+    private void SelectSuggestedGame(string gameName)
+    {
+        baseGameName = gameName;
+        suggestedGames.Clear();
+    }
+
+    private async Task AddData()
+    {
+        // Check if base game is required and if the base game name is valid
+        if (isBaseGameRequired && !string.IsNullOrWhiteSpace(baseGameName))
+        {
+            // Check if the base game exists
+            var baseGameExists = allGames.Any(game => game.GameName.Equals(baseGameName, StringComparison.OrdinalIgnoreCase));
+
+            if (!baseGameExists)
+            {
+                baseGameErrorMessage = "Base game does not exist. Please enter a valid game name.";
+                return;
+            }
+            else
+            {
+                baseGameErrorMessage = string.Empty;
+            }
+        }
+
+        // Insert the new game
+        string sql = @"INSERT INTO Games (GameName, GameDescription, PlayTime, Publisher, Author)
+                       VALUES (@GameName, @GameDescription, @PlayTime, @Publisher, @Author);";
+
+        try
+        {
+            await _data.SaveData(sql, new
+            {
+                GameName = newGame.GameName,
+                GameDescription = newGame.GameDescription,
+                PlayTime = newGame.PlayTime,
+                Publisher = newGame.Publisher,
+                Author = newGame.Author
+            }, _config.GetConnectionString("default"));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inserting game: {ex.Message}");
+            return;
+        }
+
+        // Get ID of the newly added game
+        var gameId = await _data.GetIdByName("Games", newGame.GameName, _config.GetConnectionString("default"));
+
+        // Insert images if any
+        if (newImages.Any())
+        {
+            foreach (var newImage in newImages)
+            {
+                if (!string.IsNullOrEmpty(newImage.ImageUrl))
+                {
+                    string insertImageSql = @"INSERT INTO Game_Image (ImageUrl, IsMain, IdGame)
+                                              VALUES (@ImageUrl, @IsMain, @IdGame)";
+                    await _data.SaveData(insertImageSql, new { ImageUrl = newImage.ImageUrl, IsMain = newImage.IsMain, IdGame = gameId }, _config.GetConnectionString("default"));
+                }
+            }
+        }
+
+        // Save selected categories for the game
+        if (selectedCategoryId != 0)
+        {
+            string insertCategorySql = @"INSERT INTO Game_Category (IdGame, IdCategory)
+                                         VALUES (@IdGame, @IdCategory)";
+            await _data.SaveData(insertCategorySql, new { IdGame = gameId, IdCategory = selectedCategoryId }, _config.GetConnectionString("default"));
+        }
+
+        // If marked as DLC, link it to the base game
+        if (isBaseGameRequired && !string.IsNullOrWhiteSpace(baseGameName))
+        {
+            var baseGameId = await _data.GetIdByName("Games", baseGameName, _config.GetConnectionString("default"));
+
+            if (baseGameId != 0)
+            {
+                string insertDlcSql = @"INSERT INTO DLC (MainGameId, DLCGameId)
+                                        VALUES (@MainGameId, @DLCGameId)";
+                await _data.SaveData(insertDlcSql, new { MainGameId = baseGameId, DLCGameId = gameId }, _config.GetConnectionString("default"));
+            }
+            else
+            {
+                baseGameErrorMessage = "Failed to link to base game. Please ensure it exists.";
+                return;
+            }
+        }
+
+        // Redirect to the games page after adding the new game
+        Navigation.NavigateTo("/games");
+    }
+
+    private void AddNewImage()
+    {
+        newImages.Add(new GameImageModel());
+    }
+
+    private void RemoveNewImage(GameImageModel image)
+    {
+        newImages.Remove(image);
+    }
+
+    private void OnNewImageChanged(GameImageModel image)
+    {
+        image.IsMain = !image.IsMain;
+        foreach (var img in newImages.Where(img => img != image))
+        {
+            img.IsMain = false;
+        }
+    }
+
+    private void ToggleBaseGameInput()
+    {
+        isBaseGameRequired = !isBaseGameRequired;
+        baseGameName = string.Empty;
+        suggestedGames.Clear();
+    }
+}

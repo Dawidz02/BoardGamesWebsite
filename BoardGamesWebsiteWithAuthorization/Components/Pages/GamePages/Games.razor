@@ -1,0 +1,588 @@
+﻿@page "/games"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models
+@using System.Text.RegularExpressions
+@using System.Text
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<style>
+    /* Existing styles... */
+
+    .game-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .card-content {
+        position: relative; /* Set the position relative to position buttons correctly */
+        padding-top: 35px;
+    }
+
+    .actions {
+        position: absolute; /* Position the actions absolutely */
+        top: 10px; /* Space from the top */
+        right: 10px; /* Space from the right */
+        display: flex; /* Align buttons in a row */
+        gap: 5px; /* Space between buttons */
+        z-index: 1; /* Ensure it appears above other content */
+    }
+
+    .game-card {
+        position: relative; /* Allow absolute positioning of children */
+        width: 300px; /* Adjust the width as necessary */
+        border: 1px solid #ddd; /* Border styling */
+        border-radius: 5px; /* Rounded corners */
+        padding: 10px; /* Padding for the card */
+        background-color: #f9f9f9; /* Background color */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Box shadow for depth */
+    }
+
+    /* Add this class for logged-out state */
+    .no-actions {
+        padding-top: 0; /* Remove padding when not logged in */
+    }
+
+
+
+    .game-card img {
+        width: 100%; /* Dopasowanie szerokości do kontenera */
+        max-height: 200px; /* Ustal maksymalną wysokość obrazka */
+        object-fit: contain; /* Dopasowanie obrazka bez przycinania */
+        border-radius: 5px;
+        margin-bottom: 10px;
+        background-color: #f0f0f0; /* Opcjonalnie: dodaj tło, jeśli obrazek nie wypełni całej przestrzeni */
+    }
+
+
+
+    .game-card .card-title {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .game-card .card-text {
+        margin-bottom: 10px;
+        max-height: 100px; /* Set a maximum height */
+        overflow: hidden; /* Hide overflow content */
+        text-overflow: ellipsis; /* Optional: show ellipsis for overflow text */
+        display: -webkit-box; /* For multiline truncation */
+        -webkit-line-clamp: 4; /* Limit to 4 lines */
+        -webkit-box-orient: vertical; /* Define box orientation */
+    }
+
+    .selected-categories {
+        margin-left: 10px;
+        display: inline-block;
+    }
+
+    .sort-options {
+        margin-top: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+        background-color: #f1f1f1;
+    }
+
+    .arrow-icon {
+        margin-left: 5px;
+        font-size: 18px; /* Zwiększenie rozmiaru strzałki */
+        font-weight: bold; /* Pogrubienie strzałki */
+    }
+
+    /* Style for the sort button to look like a badge */
+    .sort-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border: 1px solid #007bff; /* Blue border similar to Bootstrap primary */
+        border-radius: 20px;
+        background-color: #007bff; /* Blue background */
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-bottom: 5px; /* Space between buttons */
+    }
+
+        .sort-button:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+
+    .sort-options {
+        position: absolute; /* Position it below the button */
+        z-index: 1000; /* Ensure it appears above other content */
+        margin-top: 5px; /* Space between the button and the dropdown */
+        border: 1px solid #ddd; /* Border around the dropdown */
+        border-radius: 5px; /* Rounded corners */
+        background-color: #fff; /* White background */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+        padding: 10px; /* Padding inside the dropdown */
+    }
+
+    .highlight {
+        font-weight: bold; /* Pogrubienie tekstu */
+        background-color: #FFE4C4; /* Kolor tła */
+        position: relative; /* Ustalona pozycja */
+    }
+
+
+</style>
+
+<h3>Games</h3>
+
+@if (isLoggedIn)
+{
+    <a href="/games/create" class="btn btn-primary mb-3">Add New Game</a>
+}
+<button class="btn btn-primary mb-3 ml-2" @onclick="ShowCategoriesModal">Choose Categories</button>
+<button class="btn btn-primary mb-3" @onclick="ToggleSortOptions">Sort By</button>
+
+@if (showSortOptions)
+{
+    <div class="sort-options">
+        <div class="sort-button" style="@GetSortButtonStyle(nameof(GameModel.GameName))" @onclick="SortByGameName">
+            Sort by Name
+        </div>
+        <div class="sort-button" style="@GetSortButtonStyle(nameof(GameModel.Publisher))" @onclick="SortByPublisher">
+            Sort by Publisher
+        </div>
+        <div class="sort-button" style="@GetSortButtonStyle(nameof(GameModel.Author))" @onclick="SortByAuthor">
+            Sort by Author
+        </div>
+    </div>
+}
+
+<!-- Render selected categories with remove buttons -->
+<span class="selected-categories">
+    @foreach (var category in selectedCategories)
+    {
+        <span class="badge badge-pill badge-primary" style="margin-right: 5px; background-color: #e0e0e0; color: black;">
+            @category
+            <button type="button" class="close" aria-label="Close" style="color: black;" @onclick="() => RemoveCategory(category)">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </span>
+    }
+</span>
+
+<div class="mb-3">
+    <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Search by title, author, or publisher" class="form-control" />
+</div>
+
+@if (games == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="game-container">
+        @foreach (var g in FilteredAndSortedGames)
+        {
+            var mainImage = g.GameImages?.FirstOrDefault(img => img.IsMain);
+
+            <div class="game-card" style="text-decoration: none; color: inherit;">
+                <div class="card-content @(!isLoggedIn ? "no-actions" : "")">
+                    <!-- Wrap image and title in an anchor tag to link to the details page -->
+                    <a href="/games/details/@g.Id" style="text-decoration: none; color: inherit;">
+                        @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
+                        {
+                            <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
+                        }
+                        else
+                        {
+                            <img src="/path/to/default-image.jpg" alt="No Image" class="img-thumbnail" />
+                        }
+
+                        <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
+                    </a>
+
+                    <div class="card-text">Author: @HighlightText(g.Author, searchQuery)</div>
+                    <div class="card-text">Publisher: @HighlightText(g.Publisher, searchQuery)</div>
+                    <div class="card-text">Play Time: @g.PlayTime min</div>
+                    <div class="card-text">Category: @g.Categories</div>
+                    <div class="card-text" style="margin-bottom: 10px;">
+                        Description: @HighlightText(GetShortDescription(g.GameDescription, 50), searchQuery)
+                    </div>
+
+                    @if (g.IsDLC)
+                    {
+                        <div class="alert alert-info text-center" role="alert">
+                            This game is an expansion for <strong>"@g.MainGameName"</strong>
+                        </div>
+                    }
+
+
+                </div>
+
+                <!-- Conditionally render the edit/delete buttons if the user is logged in -->
+                @if (isLoggedIn)
+                {
+                    <div class="actions">
+                        <a href="/games/edit/@g.Id" class="btn btn-warning btn-sm">Edit</a>
+                        <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteModal(g.Id)">Delete</button>
+                    </div>
+                }
+            </div>
+
+        }
+    </div>
+
+
+
+
+}
+
+
+<!-- Modal for displaying categories -->
+@if (showCategoriesModal)
+{
+    <div class="modal show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Categories</h5>
+                    <button type="button" class="close" aria-label="Close" @onclick="CloseCategoriesModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <ul>
+                        @foreach (var category in allCategories)
+                        {
+                            var gameCount = categoryCounts.ContainsKey(category) ? categoryCounts[category] : 0;
+                            <li>
+                                <input type="checkbox" @onchange="(e) => UpdateSelectedCategories(e, category)"
+                                       checked="@selectedCategories.Contains(category)" />
+                                @category (@gameCount)
+                            </li>
+                        }
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCategoriesModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
+}
+
+<!-- Modal for delete confirmation -->
+@if (showDeleteModal)
+{
+    <div class="modal show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="close" aria-label="Close" @onclick="CloseDeleteModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this game and all its images?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
+}
+
+@code {
+    private List<GameModel> games;
+    private List<string> allCategories; // List of all categories
+    private List<string> selectedCategories = new List<string>(); // Selected categories for filtering
+    private bool isAscending = true;
+    private Dictionary<string, int> categoryCounts = new Dictionary<string, int>(); // Category counts
+    private string currentSortProperty;
+    private string searchQuery = string.Empty;
+    private bool isLoggedIn;
+    private bool showDeleteModal = false;  // Variable to control delete modal visibility
+    private int gameIdToDelete;  // Store game ID to delete
+    private bool showCategoriesModal = false; // Variable to control categories modal visibility
+    private int sortClickCount = 0;
+    private bool showSortOptions = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isLoggedIn = authState.User.Identity.IsAuthenticated;
+
+        string sql = @"
+    SELECT c.CategoryName, COUNT(gc.IdGame) AS GameCount
+    FROM Categories c
+    LEFT JOIN Game_Category gc ON c.Id = gc.IdCategory
+    GROUP BY c.CategoryName";
+
+        var categoryResults = await _data.LoadData<CategoryWithCount, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+        allCategories = categoryResults.Select(c => c.CategoryName).ToList();
+        categoryCounts = categoryResults.ToDictionary(c => c.CategoryName, c => c.GameCount);
+
+        // Query to load games with DLC check
+        string gamesSql = @"
+SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
+       CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
+       (SELECT MainGame.GameName FROM games AS MainGame
+        JOIN DLC ON MainGame.Id = DLC.MainGameId
+        WHERE DLC.DLCGameId = g.Id) AS MainGameName
+FROM games g
+LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
+LEFT JOIN Categories c ON gc.IdCategory = c.Id
+GROUP BY g.Id";
+
+        games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { }, _config.GetConnectionString("default"));
+
+        foreach (var game in games)
+        {
+            string imageSql = "SELECT * FROM Game_Image WHERE IdGame = @IdGame";
+            var imageResults = await _data.LoadData<GameImageModel, dynamic>(imageSql, new { IdGame = game.Id }, _config.GetConnectionString("default"));
+            game.GameImages = imageResults.ToList();
+        }
+    }
+
+
+    // Show categories modal
+    private void ShowCategoriesModal()
+    {
+        showCategoriesModal = true;
+    }
+
+    // Close categories modal
+    private void CloseCategoriesModal()
+    {
+        showCategoriesModal = false;
+    }
+
+    // Update selected categories
+    private void UpdateSelectedCategories(ChangeEventArgs e, string category)
+    {
+        if ((bool)e.Value)
+        {
+            if (!selectedCategories.Contains(category))
+            {
+                selectedCategories.Add(category);
+            }
+        }
+        else
+        {
+            selectedCategories.Remove(category);
+        }
+    }
+
+    // Show delete confirmation modal
+    private void ShowDeleteModal(int gameId)
+    {
+        gameIdToDelete = gameId;
+        showDeleteModal = true;
+    }
+
+    // Close delete modal
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+    }
+
+    // Confirm delete of game, its images, and DLC relationships
+    private async Task ConfirmDelete()
+    {
+        // First, delete any DLC relationships where this game is a main game
+        string deleteDlcSqlAsMain = "DELETE FROM DLC WHERE MainGameId = @IdGame";
+        await _data.SaveData(deleteDlcSqlAsMain, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
+
+        // Also delete any DLC relationships where this game is a DLC
+        string deleteDlcSqlAsDlc = "DELETE FROM DLC WHERE DLCGameId = @IdGame";
+        await _data.SaveData(deleteDlcSqlAsDlc, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
+
+        // Now delete the game images and categories
+        string deleteCategoriesSql = "DELETE FROM Game_Category WHERE IdGame = @IdGame";
+        await _data.SaveData(deleteCategoriesSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
+
+        string deleteImagesSql = "DELETE FROM Game_Image WHERE IdGame = @IdGame";
+        await _data.SaveData(deleteImagesSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
+
+        // Finally, delete the game itself
+        string deleteGameSql = "DELETE FROM games WHERE Id = @IdGame";
+        await _data.SaveData(deleteGameSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
+
+        // Update the local games list
+        games = games.Where(g => g.Id != gameIdToDelete).ToList(); // Remove from local list
+        showDeleteModal = false; // Close the modal
+        StateHasChanged(); // Refresh UI
+    }
+
+
+
+    // Filter and sort games based on search query and selected categories
+    private IEnumerable<GameModel> FilteredAndSortedGames
+    {
+        get
+        {
+            var filteredGames = games
+                .Where(g => g.GameName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                            g.Author.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                            g.Publisher.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+            // Filter by selected categories
+            if (selectedCategories.Any())
+            {
+                filteredGames = filteredGames.Where(g =>
+                    !string.IsNullOrEmpty(g.Categories) &&
+                    g.Categories.Split(", ").Any(category => selectedCategories.Contains(category))
+                );
+            }
+
+            if (!string.IsNullOrEmpty(currentSortProperty) && currentSortProperty != nameof(GameModel.Categories))
+            {
+                var propertyInfo = typeof(GameModel).GetProperty(currentSortProperty);
+                if (propertyInfo != null)
+                {
+                    return isAscending
+                        ? filteredGames.OrderBy(g => propertyInfo.GetValue(g)).ToList()
+                        : filteredGames.OrderByDescending(g => propertyInfo.GetValue(g)).ToList();
+                }
+            }
+            return filteredGames.ToList();
+        }
+    }
+
+    // Get selected categories as a comma-separated string
+    private string GetSelectedCategoriesText()
+    {
+        return selectedCategories.Count > 0 ? string.Join(", ", selectedCategories) : "No categories selected";
+    }
+
+    public class CategoryWithCount
+    {
+        public string CategoryName { get; set; }
+        public int GameCount { get; set; }
+    }
+
+    private void SortBy(string property)
+    {
+        if (currentSortProperty == property)
+        {
+            sortClickCount++;
+            if (sortClickCount == 3)
+            {
+                // Reset sorting state after the third click
+                currentSortProperty = null;
+                isAscending = true; // Resetting the order to default
+                sortClickCount = 0; // Reset click count
+            }
+            else
+            {
+                isAscending = !isAscending; // Toggle sort order
+            }
+        }
+        else
+        {
+            currentSortProperty = property;
+            isAscending = true; // Default to ascending
+            sortClickCount = 1; // Reset click count to 1 for the new property
+        }
+    }
+
+
+
+    // Get CSS class for sorting columns
+    private string GetColumnClass(string property)
+    {
+        return currentSortProperty == property ? (isAscending ? "sorted-asc" : "sorted-desc") : string.Empty;
+    }
+
+    // Funkcja podświetlania tekstu w wynikach wyszukiwania
+    private MarkupString HighlightText(string text, string searchQuery)
+    {
+        if (string.IsNullOrEmpty(searchQuery) || string.IsNullOrEmpty(text))
+        {
+            return (MarkupString)text;
+        }
+
+        var highlightedText = new StringBuilder();
+        int queryIndex = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (queryIndex < searchQuery.Length &&
+                char.ToLower(text[i]) == char.ToLower(searchQuery[queryIndex]))
+            {
+                // Jeśli litera pasuje do wyszukiwanego hasła, pogrub ją i podświetl
+                highlightedText.Append($"<span class='highlight'>{text[i]}</span>");
+                queryIndex++; // Przejdź do kolejnej litery wyszukiwanego hasła
+            }
+            else
+            {
+                highlightedText.Append(text[i]);
+            }
+        }
+
+        return (MarkupString)highlightedText.ToString();
+    }
+
+
+    private void RemoveCategory(string category)
+    {
+        selectedCategories.Remove(category);
+    }
+
+    private void ToggleSortOptions()
+    {
+        showSortOptions = !showSortOptions; // Toggle the visibility
+    }
+
+    // Skracanie description
+    private string GetShortDescription(string description, int maxLength = 150)
+    {
+        if (string.IsNullOrEmpty(description) || description.Length <= maxLength)
+        {
+            return description; // Jeśli opis jest krótszy lub równy maxLength, zwróć go w całości
+        }
+
+        return description.Substring(0, maxLength) + "..."; // Przytnij do maxLength i dodaj "..."
+    }
+
+
+    // Method to sort by game name
+    private void SortByGameName()
+    {
+        SortBy(nameof(GameModel.GameName));
+    }
+    private void SortByPublisher()
+    {
+        SortBy(nameof(GameModel.Publisher));
+    }
+
+    private void SortByAuthor()
+    {
+        SortBy(nameof(GameModel.Author));
+    }
+
+
+    private string GetSortButtonStyle(string property)
+    {
+        if (currentSortProperty == property)
+        {
+            if (sortClickCount == 1)
+            {
+                return "background-color: green; color: white;"; // Green background on first click
+            }
+            else if (sortClickCount == 2)
+            {
+                return "background-color: red; color: white;"; // Red background on second click
+            }
+        }
+        return "background-color: #007bff; color: white;"; // Default blue background
+    }
+
+
+
+} 

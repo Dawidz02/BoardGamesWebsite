@@ -1,0 +1,286 @@
+﻿@page "/games/details/{id:int}"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models
+@using Microsoft.Extensions.Configuration
+@inject NavigationManager Navigation
+@inject IDataAccess _data
+@inject IConfiguration _config
+
+<h3>Game Details</h3>
+
+@if (game == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="game-details">
+        <div class="game-header">
+            <h2>@game.GameName</h2>
+            <p><strong>Author:</strong> @game.Author</p>
+            <p><strong>Publisher:</strong> @game.Publisher</p>
+            <p><strong>Play Time:</strong> @game.PlayTime minutes</p>
+            <p><strong>Categories:</strong> @game.Categories</p>
+            <p><strong>Description:</strong> @game.GameDescription</p>
+        </div>
+
+        <!-- Display Game Images -->
+        <div class="game-images">
+            @if (game.GameImages != null && game.GameImages.Any())
+            {
+                foreach (var image in game.GameImages)
+                {
+                    <img src="@image.ImageUrl" alt="Game Image" class="img-thumbnail" />
+                }
+            }
+            else
+            {
+                <p><em>No images available for this game.</em></p>
+            }
+        </div>
+
+        <!-- Display DLCs -->
+        <div class="game-dlcs">
+            <h4>Available Extensions</h4>
+            <div class="dlc-list">
+                @if (game.DLCs != null && game.DLCs.Any())
+                {
+                    <ul>
+                        @foreach (var dlc in game.DLCs)
+                        {
+                            <li class="dlc-box">
+                                <a href="/games/details/@dlc.Id">
+                                    <strong>@dlc.GameName</strong>
+                                    <p>@dlc.Author (@dlc.Publisher)</p>
+                                    <p><em>@dlc.PlayTime</em> minutes</p>
+
+                                    <!-- Wyświetlanie obrazków DLC -->
+                                    <div class="dlc-images">
+                                        @if (dlc.GameImages != null && dlc.GameImages.Any())
+                                        {
+                                            foreach (var image in dlc.GameImages)
+                                            {
+                                                <img src="@image.ImageUrl" alt="DLC Image" class="img-thumbnail" />
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <p><em>No images available for this DLC.</em></p>
+                                        }
+                                    </div>
+                                    <p>@GetShortDescription(dlc.GameDescription, 50)</p>
+                                </a>
+                            </li>
+
+                        }
+                    </ul>
+                }
+                else
+                {
+                    // Show message depending on whether the game is a base game or a DLC
+                    if (isDlc) // Variable to check if the game is a DLC
+                    {
+                        <p class="required-game-message"><em>This extension requires the basic version of the game.</em></p>
+                        ;
+                    }
+                    else
+                    {
+                        <p class="no-extensions-message"><em>No extensions available for this game.</em></p>
+                        ;
+                    }
+                }
+            </div>
+        </div>
+
+        <div>
+            <a href="/games" class="btn btn-primary mt-3">Back to Games</a>
+        </div>
+    </div>
+}
+
+<style>
+    .game-details {
+        padding: 20px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .game-header {
+        margin-bottom: 20px;
+    }
+
+    .game-images img {
+        margin-right: 10px;
+        border-radius: 5px;
+        max-width: 100%; /* Responsive width */
+        max-height: 300px; /* Keep max height for main game images */
+    }
+
+    .game-dlcs {
+        margin-top: 30px;
+    }
+
+        .game-dlcs h4 {
+            margin-bottom: 15px; /* Space below the header */
+        }
+
+    .dlc-list {
+        display: flex; /* Use flexbox for layout */
+        flex-wrap: wrap; /* Allow items to wrap to the next line */
+        gap: 20px; /* Space between the boxes */
+    }
+
+        .dlc-list ul {
+            list-style-type: none; /* Remove bullet points */
+            padding: 0; /* Remove default padding */
+            margin: 0; /* Remove default margin */
+            display: flex; /* Ensure items are displayed in a row */
+            flex-wrap: wrap; /* Allow items to wrap */
+        }
+
+    .dlc-box {
+        background-color: #fff;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        width: 240px; /* Stała szerokość dla każdego bloku DLC */
+        height: 400px; /* Stała wysokość dla każdego bloku DLC */
+        display: flex; /* Ustaw blok DLC jako kontener flex */
+        flex-direction: column; /* Układ pionowy elementów w bloku */
+        align-items: center; /* Wyśrodkowanie elementów w bloku */
+        text-decoration: none; /* Usunięcie podkreślenia */
+        color: black; /* Ustawienie koloru czcionki na czarny */
+        transition: background-color 0.2s; /* Płynna zmiana koloru tła na hover */
+        overflow: hidden; /* Ukrycie nadmiaru treści */
+    }
+
+        .dlc-box a {
+            text-decoration: none; /* Usunięcie podkreślenia z linków */
+            color: black; /* Ustawienie koloru tekstu na czarny */
+            width: 100%; /* Ustawienie szerokości linku na 100% kontenera */
+            text-align: center; /* Wyśrodkowanie tekstu w linku */
+        }
+
+        .dlc-box:hover {
+            background-color: #e9ecef; /* Podświetlenie bloku na hover */
+        }
+
+
+    .dlc-images img {
+        width: 180px; /* Fixed width for DLC images */
+        height: 180px; /* Fixed height for DLC images */
+        margin-bottom: 10px; /* Space below images */
+        border-radius: 5px;
+        object-fit: contain; /* Ensure images cover the box without distortion */
+        display: block; /* Ensure images are displayed as block */
+        margin-left: auto; /* Center the images */
+        margin-right: auto; /* Center the images */
+    }
+
+    /* Ensure that the DLC title and description are properly styled */
+    .game-dlcs strong {
+        margin-bottom: 5px; /* Space below the title */
+        text-align: center; /* Center align title */
+        color: black; /* Ensure title color is black */
+    }
+
+    .game-dlcs p {
+        margin: 0; /* Remove margins for paragraph elements */
+        text-align: center; /* Center align text */
+        color: black; /* Ensure description color is black */
+    }
+
+    .required-game-message {
+        color: #d9534f; /* Bootstrap Danger color */
+        font-weight: bold;
+        margin-top: 15px; /* Space above the message */
+        text-align: center; /* Center align required game message */
+    }
+
+    .no-extensions-message {
+        margin-top: 15px; /* Space above the message */
+        text-align: center; /* Center align no extensions message */
+    }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private GameModel game;
+    private bool isDlc; // Flag to determine if the game is a DLC
+
+    protected override async Task OnInitializedAsync()
+    {
+        // SQL to get game details along with its categories
+        string sql = @"
+    SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories
+    FROM games g
+    LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
+    LEFT JOIN Categories c ON gc.IdCategory = c.Id
+    WHERE g.Id = @Id
+    GROUP BY g.Id";
+
+        var gameResult = await _data.LoadData<GameModel, dynamic>(sql, new { Id }, _config.GetConnectionString("default"));
+
+        if (gameResult.Any())
+        {
+            game = gameResult.First();
+
+            // Check if the game is a DLC
+            string checkDlcSql = "SELECT COUNT(*) FROM DLC WHERE DLCGameId = @Id";
+            var dlcCount = await _data.LoadData<int, dynamic>(checkDlcSql, new { Id = game.Id }, _config.GetConnectionString("default"));
+            isDlc = dlcCount.First() > 0; // Set isDlc flag based on the count
+
+            // Fetch images related to the game
+            string imageSql = "SELECT * FROM Game_Image WHERE IdGame = @IdGame";
+            var imageResults = await _data.LoadData<GameImageModel, dynamic>(imageSql, new { IdGame = game.Id }, _config.GetConnectionString("default"));
+            game.GameImages = imageResults.ToList();
+
+            // Fetch DLCs related to the game
+            string dlcSql = @"
+    SELECT
+    g.Id,
+    g.GameName,
+    g.Author,
+    g.Publisher,
+    g.PlayTime,
+    g.GameDescription,
+    GROUP_CONCAT(gi.ImageUrl) AS ImageUrls
+FROM
+    DLC dlc
+INNER JOIN
+    Games g ON dlc.DLCGameId = g.Id
+LEFT JOIN
+    Game_Image gi ON gi.IdGame = g.Id
+WHERE
+    dlc.MainGameId = @Id
+GROUP BY
+    g.Id, g.GameName, g.Author, g.Publisher, g.PlayTime, g.GameDescription;";
+
+            var dlcResults = await _data.LoadData<GameModel, dynamic>(dlcSql, new { Id }, _config.GetConnectionString("default"));
+            foreach (var dlc in dlcResults)
+            {
+                // Fetch images for each DLC
+                string dlcImageSql = "SELECT * FROM Game_Image WHERE IdGame = @IdGame AND IsMain = true";
+                var dlcImages = await _data.LoadData<GameImageModel, dynamic>(dlcImageSql, new { IdGame = dlc.Id }, _config.GetConnectionString("default"));
+                dlc.GameImages = dlcImages.ToList();
+            }
+            game.DLCs = dlcResults.ToList();
+        }
+    }
+
+    // Skracanie description
+    private string GetShortDescription(string description, int maxLength = 150)
+    {
+        if (string.IsNullOrEmpty(description) || description.Length <= maxLength)
+        {
+            return description; // Jeśli opis jest krótszy lub równy maxLength, zwróć go w całości
+        }
+
+        return description.Substring(0, maxLength) + "..."; // Przytnij do maxLength i dodaj "..."
+    }
+}
