@@ -28,6 +28,26 @@
                 <label for="phone-number" class="form-label">Phone number</label>
                 <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
             </div>
+            <div class="form-floating mb-3">
+                <InputDate @bind-Value="Input.DateOfBirth" class="form-control" placeholder="Please enter your date of birth." />
+                <label for="date-of-birth" class="form-label">Date of birth</label>
+                <ValidationMessage For="() => Input.DateOfBirth" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Adress" class="form-control" placeholder="Please enter your Adress (city)." />
+                <label for="adress" class="form-label">Adress</label>
+                <ValidationMessage For="() => Input.Adress" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.PrefferedLocalization" class="form-control" placeholder="Please enter your Preffered Localization (city)." />
+                <label for="preffered-localization" class="form-label">PrefferedLocalization</label>
+                <ValidationMessage For="() => Input.PrefferedLocalization" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.UserDescription" class="form-control" placeholder="Please enter your description." />
+                <label for="description" class="form-label">Description</label>
+                <ValidationMessage For="() => Input.UserDescription" class="text-danger" />
+            </div>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
         </EditForm>
     </div>
@@ -46,23 +66,32 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Input ??= new();
+
         user = await UserAccessor.GetRequiredUserAsync(HttpContext);
         username = await UserManager.GetUserNameAsync(user);
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
 
         Input.PhoneNumber ??= phoneNumber;
+        Input.DateOfBirth ??= user.DateOfBirth;
+        Input.Adress ??= user.Adress;
+        Input.PrefferedLocalization ??= user.PrefferedLocalization;
+        Input.UserDescription ??= user.UserDescription;
     }
 
     private async Task OnValidSubmitAsync()
     {
-        if (Input.PhoneNumber != phoneNumber)
-        {
-            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
-            if (!setPhoneResult.Succeeded)
+        user.PhoneNumber = Input.PhoneNumber;
+        user.DateOfBirth = Input.DateOfBirth;
+        user.Adress = Input.Adress;
+        user.PrefferedLocalization = Input.PrefferedLocalization;
+        user.UserDescription = Input.UserDescription;
+
+            var updateResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
+            if (!updateResult.Succeeded)
             {
-                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to set phone number.", HttpContext);
+                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to uptade the user.", HttpContext);
             }
-        }
 
         await SignInManager.RefreshSignInAsync(user);
         RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
@@ -73,5 +102,10 @@
         [Phone]
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
+
+        public DateOnly? DateOfBirth { get; set; }
+        public string? Adress { get; set; }
+        public string? PrefferedLocalization { get; set; }
+        public string? UserDescription { get; set; }
     }
 }

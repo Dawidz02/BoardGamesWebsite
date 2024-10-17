@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BoardGamesWebsiteWithAuthorization.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241016095543_initial")]
-    partial class initial
+    [Migration("20241017111541_CustomUser2")]
+    partial class CustomUser2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,9 +33,15 @@ namespace BoardGamesWebsiteWithAuthorization.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<string>("Adress")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("longtext");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -67,11 +73,17 @@ namespace BoardGamesWebsiteWithAuthorization.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("PrefferedLocalization")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("longtext");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("UserDescription")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
@@ -87,88 +99,6 @@ namespace BoardGamesWebsiteWithAuthorization.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("BoardGamesWebsiteWithAuthorization.Models.GameImageModel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("GameId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("IdGame")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsMain")
-                        .HasColumnType("tinyint(1)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GameId");
-
-                    b.ToTable("GameImageModel");
-                });
-
-            modelBuilder.Entity("BoardGamesWebsiteWithAuthorization.Models.GameModel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Author")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Categories")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("DLCGame")
-                        .HasColumnType("int");
-
-                    b.Property<string>("GameDescription")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int?>("GameModelId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("GameName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDLC")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("MainGameId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("MainGameName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("PlayTime")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Publisher")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GameModelId");
-
-                    b.ToTable("Game");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -303,24 +233,6 @@ namespace BoardGamesWebsiteWithAuthorization.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BoardGamesWebsiteWithAuthorization.Models.GameImageModel", b =>
-                {
-                    b.HasOne("BoardGamesWebsiteWithAuthorization.Models.GameModel", "Game")
-                        .WithMany("GameImages")
-                        .HasForeignKey("GameId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Game");
-                });
-
-            modelBuilder.Entity("BoardGamesWebsiteWithAuthorization.Models.GameModel", b =>
-                {
-                    b.HasOne("BoardGamesWebsiteWithAuthorization.Models.GameModel", null)
-                        .WithMany("DLCs")
-                        .HasForeignKey("GameModelId");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -370,13 +282,6 @@ namespace BoardGamesWebsiteWithAuthorization.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("BoardGamesWebsiteWithAuthorization.Models.GameModel", b =>
-                {
-                    b.Navigation("DLCs");
-
-                    b.Navigation("GameImages");
                 });
 #pragma warning restore 612, 618
         }
