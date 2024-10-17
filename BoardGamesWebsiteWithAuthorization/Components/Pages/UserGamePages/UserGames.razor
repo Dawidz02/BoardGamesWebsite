@@ -198,7 +198,6 @@ else
 
             <div class="game-card" style="text-decoration: none; color: inherit;">
                 <div class="card-content @(!isLoggedIn ? "no-actions" : "")">
-                    <!-- Przyciski akcji - przeniesione do góry -->
                     <div class="actions">
                         <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteModal(g.Id)">Delete</button>
                     </div>
@@ -214,14 +213,6 @@ else
 
                     <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
 
-                    <div class="card-text">Author: @HighlightText(g.Author, searchQuery)</div>
-                    <div class="card-text">Publisher: @HighlightText(g.Publisher, searchQuery)</div>
-                    <div class="card-text">Play Time: @g.PlayTime min</div>
-                    <div class="card-text">Category: @g.Categories</div>
-                    <div class="card-text" style="margin-bottom: 10px;">
-                        Description: @HighlightText(GetShortDescription(g.GameDescription, 50), searchQuery)
-                    </div>
-
                     @if (g.IsDLC)
                     {
                         <div class="alert alert-info text-center" role="alert">
@@ -230,6 +221,7 @@ else
                     }
                 </div>
             </div>
+
         }
     </div>
 
@@ -323,19 +315,33 @@ else
         // Retrieve the logged-in user's ID
         string userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+        // SQL query to get user's games with categories
+        string sqlCategory = @"
+    SELECT c.CategoryName, COUNT(gc.IdGame) AS GameCount
+    FROM Categories c
+    LEFT JOIN Game_Category gc ON c.Id = gc.IdCategory
+    LEFT JOIN User_Game ug ON ug.IdGame = gc.IdGame
+    WHERE ug.IdUser = @UserId
+    GROUP BY c.CategoryName";
+
+        // Load the category counts for the user's games
+        var categoryResults = await _data.LoadData<CategoryWithCount, dynamic>(sqlCategory, new { UserId = userId }, _config.GetConnectionString("default"));
+        allCategories = categoryResults.Select(c => c.CategoryName).ToList();
+        categoryCounts = categoryResults.ToDictionary(c => c.CategoryName, c => c.GameCount);
+
         // SQL query to get user's games
         string gamesSql = @"
-        SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
-        CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
-        (SELECT MainGame.GameName FROM games AS MainGame
-        JOIN DLC ON MainGame.Id = DLC.MainGameId
-        WHERE DLC.DLCGameId = g.Id) AS MainGameName
-        FROM User_Game ug
-        JOIN games g ON ug.IdGame = g.Id
-        LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
-        LEFT JOIN Categories c ON gc.IdCategory = c.Id
-        WHERE ug.IdUser = @UserId
-        GROUP BY g.Id";
+    SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
+    CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
+    (SELECT MainGame.GameName FROM games AS MainGame
+    JOIN DLC ON MainGame.Id = DLC.MainGameId
+    WHERE DLC.DLCGameId = g.Id) AS MainGameName
+    FROM User_Game ug
+    JOIN games g ON ug.IdGame = g.Id
+    LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
+    LEFT JOIN Categories c ON gc.IdCategory = c.Id
+    WHERE ug.IdUser = @UserId
+    GROUP BY g.Id";
 
         // Load the user's games
         games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { UserId = userId }, _config.GetConnectionString("default"));
@@ -347,6 +353,7 @@ else
             game.GameImages = imageResults.ToList();
         }
     }
+
 
 
 

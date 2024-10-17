@@ -201,7 +201,13 @@ else
         {
             var mainImage = g.GameImages?.FirstOrDefault(img => img.IsMain);
 
-            <div class="game-card" style="text-decoration: none; color: inherit;">
+            // Sprawdź, czy gra należy do użytkownika
+            bool isOwnedByUser = IsGameOwnedByUser(g.Id);
+
+            // Dodaj styl dla gier należących do użytkownika
+            var cardStyle = isOwnedByUser ? "background-color: #F0FFF0;" : "";
+
+            <div class="game-card" style="text-decoration: none; color: inherit; @cardStyle">
                 <div class="card-content @(!isLoggedIn ? "no-actions" : "")">
                     <a href="/games/details/@g.Id" style="text-decoration: none; color: inherit;">
                         @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
@@ -251,10 +257,7 @@ else
                         @feedbackMessage
                     </div>
                 }
-
-
             </div>
-
         }
         @if (isLoggedIn && isAdmin)
         {
@@ -335,6 +338,7 @@ else
     private List<GameModel> games;
     private List<string> allCategories; // List of all categories
     private List<string> selectedCategories = new List<string>(); // Selected categories for filtering
+    private List<int> ownedGameIds = new List<int>(); // Lista ID gier posiadanych przez użytkownika
     private bool isAscending = true;
     private Dictionary<string, int> categoryCounts = new Dictionary<string, int>(); // Category counts
     private string currentSortProperty;
@@ -354,6 +358,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         isLoggedIn = authState.User.Identity.IsAuthenticated;
         isAdmin = authState.User.IsInRole("Admin");
 
@@ -386,6 +391,12 @@ else
             string imageSql = "SELECT * FROM Game_Image WHERE IdGame = @IdGame";
             var imageResults = await _data.LoadData<GameImageModel, dynamic>(imageSql, new { IdGame = game.Id }, _config.GetConnectionString("default"));
             game.GameImages = imageResults.ToList();
+        }
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            string sqlMyGames = "SELECT IdGame FROM User_Game WHERE IdUser = @IdUser";
+            ownedGameIds = await _data.LoadData<int, dynamic>(sqlMyGames, new { IdUser = userId }, _config.GetConnectionString("default"));
         }
     }
 
@@ -670,6 +681,9 @@ else
         }
     }
 
-
+    private bool IsGameOwnedByUser(int gameId)
+    {
+        return ownedGameIds.Contains(gameId);
+    }
 
 } 
