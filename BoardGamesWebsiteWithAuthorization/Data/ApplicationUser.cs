@@ -9,6 +9,8 @@ namespace BoardGamesWebsiteWithAuthorization.Data
         public string? Adress { get; set; }
         public string? PrefferedLocalization { get; set; }
         public string? UserDescription { get; set; }
+        public string? Name { get; set; }
+        public string? SecondName { get; set; }
     }
 
 }

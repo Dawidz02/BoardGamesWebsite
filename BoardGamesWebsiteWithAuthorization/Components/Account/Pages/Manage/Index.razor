@@ -24,6 +24,16 @@
                 <label for="username" class="form-label">Username</label>
             </div>
             <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Name" class="form-control" placeholder="Please enter your name." />
+                <label for="name" class="form-label">Name</label>
+                <ValidationMessage For="() => Input.Name" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.SecondName" class="form-control" placeholder="Please enter your secondname." />
+                <label for="secondName" class="form-label">SecondName</label>
+                <ValidationMessage For="() => Input.SecondName" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." />
                 <label for="phone-number" class="form-label">Phone number</label>
                 <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
@@ -72,6 +82,9 @@
         username = await UserManager.GetUserNameAsync(user);
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
 
+        Input.UserName ??= user.UserName;
+        Input.Name ??= user.Name;
+        Input.SecondName ??= user.SecondName;
         Input.PhoneNumber ??= phoneNumber;
         Input.DateOfBirth ??= user.DateOfBirth;
         Input.Adress ??= user.Adress;
@@ -81,17 +94,20 @@
 
     private async Task OnValidSubmitAsync()
     {
+        user.UserName = Input.UserName;
         user.PhoneNumber = Input.PhoneNumber;
+        user.Name = Input.Name;
+        user.SecondName = Input.SecondName;
         user.DateOfBirth = Input.DateOfBirth;
         user.Adress = Input.Adress;
         user.PrefferedLocalization = Input.PrefferedLocalization;
         user.UserDescription = Input.UserDescription;
 
-            var updateResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
-            if (!updateResult.Succeeded)
-            {
-                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to uptade the user.", HttpContext);
-            }
+        var updateResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
+        if (!updateResult.Succeeded)
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to uptade the user.", HttpContext);
+        }
 
         await SignInManager.RefreshSignInAsync(user);
         RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
@@ -102,7 +118,10 @@
         [Phone]
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
+        public string? UserName { get; set; }
 
+        public string? Name { get; set; }
+        public string? SecondName { get; set; }
         public DateOnly? DateOfBirth { get; set; }
         public string? Adress { get; set; }
         public string? PrefferedLocalization { get; set; }
