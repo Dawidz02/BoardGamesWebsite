@@ -245,12 +245,14 @@ else
                     </div>
                 }
 
-                @if (!string.IsNullOrEmpty(g.FeedbackMessage)) // Check feedback message for this game
+                @if (isFeedbackVisible)
                 {
-                    <div class="alert alert-info" role="alert">
-                        @g.FeedbackMessage
+                    <div class="alert alert-info" style="position: fixed; top: 20px; right: 20px; z-index: 1050;">
+                        @feedbackMessage
                     </div>
                 }
+
+
             </div>
 
         }
@@ -344,6 +346,9 @@ else
     private bool showCategoriesModal = false; // Variable to control categories modal visibility
     private int sortClickCount = 0;
     private bool showSortOptions = false;
+    private bool isFeedbackVisible = false; // Kontroluje widoczność dymka
+    private string feedbackMessage = string.Empty; // Komunikat do wyświetlenia
+    private bool isSnackbarVisible = false; // Stan widoczności dymka
 
 
     protected override async Task OnInitializedAsync()
@@ -630,14 +635,14 @@ else
 
         if (!string.IsNullOrEmpty(userId))
         {
-            // Check if the game is already added by this user
+            // Sprawdź, czy gra już została dodana przez tego użytkownika
             string checkSql = @"
         SELECT COUNT(*) FROM User_Game
         WHERE IdUser = @IdUser AND IdGame = @IdGame";
 
             var existingGameCountList = await _data.LoadData<int, dynamic>(checkSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
 
-            var game = games.FirstOrDefault(g => g.Id == gameId); // Find the relevant game
+            var game = games.FirstOrDefault(g => g.Id == gameId); // Znajdź odpowiednią grę
             if (existingGameCountList.FirstOrDefault() == 0)
             {
                 string insertSql = @"
@@ -646,14 +651,25 @@ else
 
                 await _data.SaveData(insertSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
 
-                game.FeedbackMessage = "Game added to your collection!"; // Set feedback message for this game
+                feedbackMessage = "Gra dodana do twojej kolekcji!"; // Ustaw komunikat
             }
             else
             {
-                game.FeedbackMessage = "You already own this game."; // Set feedback message for duplicate entry
+                feedbackMessage = "Już posiadasz tę grę."; // Ustaw komunikat o duplikacie
             }
+
+            // Ustaw widoczność dymka
+            isFeedbackVisible = true;
+
+            // Uruchom timer do ukrycia dymka po 3 sekundach
+            _ = Task.Delay(3000).ContinueWith(_ =>
+            {
+                isFeedbackVisible = false;
+                InvokeAsync(StateHasChanged); // Odśwież interfejs
+            });
         }
     }
+
 
 
 } 
