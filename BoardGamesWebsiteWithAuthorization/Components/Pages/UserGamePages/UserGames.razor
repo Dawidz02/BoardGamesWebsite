@@ -1,4 +1,4 @@
-﻿@page "/games"
+﻿@page "/UserGames"
 @rendermode InteractiveServer
 
 @using DataLibrary
@@ -148,12 +148,7 @@
 
 </style>
 
-<h3>Games</h3>
-
-@if (isLoggedIn && isAdmin)
-{
-    <a href="/games/create" class="btn btn-primary mb-3">Add New Game</a>
-}
+<h3>My Games</h3>
 <button class="btn btn-primary mb-3" style="margin-left: 5px;" @onclick="ShowCategoriesModal">Choose Categories</button>
 <button class="btn btn-primary mb-3" @onclick="ToggleSortOptions">Sort By</button>
 
@@ -203,18 +198,16 @@ else
 
             <div class="game-card" style="text-decoration: none; color: inherit;">
                 <div class="card-content @(!isLoggedIn ? "no-actions" : "")">
-                    <a href="/games/details/@g.Id" style="text-decoration: none; color: inherit;">
-                        @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
-                        {
-                            <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
-                        }
-                        else
-                        {
-                            <img src="/path/to/default-image.jpg" alt="No Image" class="img-thumbnail" />
-                        }
+                    @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
+                    {
+                        <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
+                    }
+                    else
+                    {
+                        <img src="/path/to/default-image.jpg" alt="No Image" class="img-thumbnail" />
+                    }
 
-                        <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
-                    </a>
+                    <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
 
                     <div class="card-text">Author: @HighlightText(g.Author, searchQuery)</div>
                     <div class="card-text">Publisher: @HighlightText(g.Publisher, searchQuery)</div>
@@ -231,37 +224,8 @@ else
                         </div>
                     }
                 </div>
-
-                <!-- Conditionally render the edit/delete buttons if the user is logged in -->
-                @if (isLoggedIn)
-                {
-                    <div class="actions">
-                        <button class="btn btn-success btn-sm" @onclick="() => AddToMyGames(g.Id)">Add to My Games</button>
-                        @if (isAdmin)
-                        {
-                            <a href="/games/edit/@g.Id" class="btn btn-warning btn-sm">Edit</a>
-                            <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteModal(g.Id)">Delete</button>
-                        }
-                    </div>
-                }
-
-                @if (!string.IsNullOrEmpty(g.FeedbackMessage)) // Check feedback message for this game
-                {
-                    <div class="alert alert-info" role="alert">
-                        @g.FeedbackMessage
-                    </div>
-                }
             </div>
 
-        }
-        @if (isLoggedIn && isAdmin)
-        {
-            <!-- Add the new plus button at the end of the game list -->
-            <div class="game-card plus-card" style="display: flex; align-items: center; justify-content: center; cursor: pointer;" @onclick="NavigateToCreatePage">
-                <div style="font-size: 50px; color: #007bff; font-weight: bold;">
-                    +
-                </div>
-            </div>
         }
     </div>
 
@@ -303,31 +267,6 @@ else
     <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
 }
 
-<!-- Modal for delete confirmation -->
-@if (showDeleteModal)
-{
-    <div class="modal show" tabindex="-1" style="display: block;" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="close" aria-label="Close" @onclick="CloseDeleteModal">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to delete this game and all its images?</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
-}
 
 @code {
     private List<GameModel> games;
@@ -345,36 +284,31 @@ else
     private int sortClickCount = 0;
     private bool showSortOptions = false;
 
-
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         isLoggedIn = authState.User.Identity.IsAuthenticated;
         isAdmin = authState.User.IsInRole("Admin");
 
-        string sql = @"
-        SELECT c.CategoryName, COUNT(gc.IdGame) AS GameCount
-        FROM Categories c
-        LEFT JOIN Game_Category gc ON c.Id = gc.IdCategory
-        GROUP BY c.CategoryName";
+        // Retrieve the logged-in user's ID
+        string userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        var categoryResults = await _data.LoadData<CategoryWithCount, dynamic>(sql, new { }, _config.GetConnectionString("default"));
-        allCategories = categoryResults.Select(c => c.CategoryName).ToList();
-        categoryCounts = categoryResults.ToDictionary(c => c.CategoryName, c => c.GameCount);
-
-        // Query to load games with DLC check
+        // SQL query to get user's games
         string gamesSql = @"
         SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
         CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
         (SELECT MainGame.GameName FROM games AS MainGame
         JOIN DLC ON MainGame.Id = DLC.MainGameId
         WHERE DLC.DLCGameId = g.Id) AS MainGameName
-        FROM games g
+        FROM User_Game ug
+        JOIN games g ON ug.IdGame = g.Id
         LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
         LEFT JOIN Categories c ON gc.IdCategory = c.Id
+        WHERE ug.IdUser = @UserId
         GROUP BY g.Id";
 
-        games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { }, _config.GetConnectionString("default"));
+        // Load the user's games
+        games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { UserId = userId }, _config.GetConnectionString("default"));
 
         foreach (var game in games)
         {
@@ -383,6 +317,7 @@ else
             game.GameImages = imageResults.ToList();
         }
     }
+
 
 
     // Show categories modal
@@ -412,48 +347,6 @@ else
             selectedCategories.Remove(category);
         }
     }
-
-    // Show delete confirmation modal
-    private void ShowDeleteModal(int gameId)
-    {
-        gameIdToDelete = gameId;
-        showDeleteModal = true;
-    }
-
-    // Close delete modal
-    private void CloseDeleteModal()
-    {
-        showDeleteModal = false;
-    }
-
-    // Confirm delete of game, its images, and DLC relationships
-    private async Task ConfirmDelete()
-    {
-        // First, delete any DLC relationships where this game is a main game
-        string deleteDlcSqlAsMain = "DELETE FROM DLC WHERE MainGameId = @IdGame";
-        await _data.SaveData(deleteDlcSqlAsMain, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
-
-        // Also delete any DLC relationships where this game is a DLC
-        string deleteDlcSqlAsDlc = "DELETE FROM DLC WHERE DLCGameId = @IdGame";
-        await _data.SaveData(deleteDlcSqlAsDlc, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
-
-        // Now delete the game images and categories
-        string deleteCategoriesSql = "DELETE FROM Game_Category WHERE IdGame = @IdGame";
-        await _data.SaveData(deleteCategoriesSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
-
-        string deleteImagesSql = "DELETE FROM Game_Image WHERE IdGame = @IdGame";
-        await _data.SaveData(deleteImagesSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
-
-        // Finally, delete the game itself
-        string deleteGameSql = "DELETE FROM games WHERE Id = @IdGame";
-        await _data.SaveData(deleteGameSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
-
-        // Update the local games list
-        games = games.Where(g => g.Id != gameIdToDelete).ToList(); // Remove from local list
-        showDeleteModal = false; // Close the modal
-        StateHasChanged(); // Refresh UI
-    }
-
 
 
     // Filter and sort games based on search query and selected categories
@@ -524,11 +417,6 @@ else
             isAscending = true; // Default to ascending
             sortClickCount = 1; // Reset click count to 1 for the new property
         }
-    }
-
-    private void NavigateToCreatePage()
-    {
-        NavigationManager.NavigateTo("/games/create");
     }
 
 
@@ -620,40 +508,4 @@ else
         }
         return "background-color: #007bff; color: white;"; // Default blue background
     }
-
-
-    private async Task AddToMyGames(int gameId)
-    {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (!string.IsNullOrEmpty(userId))
-        {
-            // Check if the game is already added by this user
-            string checkSql = @"
-        SELECT COUNT(*) FROM User_Game
-        WHERE IdUser = @IdUser AND IdGame = @IdGame";
-
-            var existingGameCountList = await _data.LoadData<int, dynamic>(checkSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
-
-            var game = games.FirstOrDefault(g => g.Id == gameId); // Find the relevant game
-            if (existingGameCountList.FirstOrDefault() == 0)
-            {
-                string insertSql = @"
-            INSERT INTO User_Game (IdUser, IdGame)
-            VALUES (@IdUser, @IdGame)";
-
-                await _data.SaveData(insertSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
-
-                game.FeedbackMessage = "Game added to your collection!"; // Set feedback message for this game
-            }
-            else
-            {
-                game.FeedbackMessage = "You already own this game."; // Set feedback message for duplicate entry
-            }
-        }
-    }
-
-
 } 

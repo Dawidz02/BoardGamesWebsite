@@ -30,6 +30,7 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public string Categories { get; set; }
         public List<GameImageModel> GameImages { get; set; } = new List<GameImageModel>();
         public List<GameModel> DLCs { get; set; }  // Add this to store related DLCs
+        public string FeedbackMessage { get; set; }
     }
 
 }
