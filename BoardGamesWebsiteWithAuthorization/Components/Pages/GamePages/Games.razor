@@ -149,7 +149,7 @@
 
 <h3>Games</h3>
 
-@if (isLoggedIn)
+@if (isLoggedIn && isAdmin)
 {
     <a href="/games/create" class="btn btn-primary mb-3">Add New Game</a>
 }
@@ -233,7 +233,7 @@ else
                 </div>
 
                 <!-- Conditionally render the edit/delete buttons if the user is logged in -->
-                @if (isLoggedIn)
+                @if (isLoggedIn && isAdmin)
                 {
                     <div class="actions">
                         <a href="/games/edit/@g.Id" class="btn btn-warning btn-sm">Edit</a>
@@ -242,7 +242,7 @@ else
                 }
             </div>
         }
-        @if (isLoggedIn)
+        @if (isLoggedIn && isAdmin)
         {
             <!-- Add the new plus button at the end of the game list -->
             <div class="game-card plus-card" style="display: flex; align-items: center; justify-content: center; cursor: pointer;" @onclick="NavigateToCreatePage">
@@ -326,6 +326,7 @@ else
     private string currentSortProperty;
     private string searchQuery = string.Empty;
     private bool isLoggedIn;
+    private bool isAdmin;
     private bool showDeleteModal = false;  // Variable to control delete modal visibility
     private int gameIdToDelete;  // Store game ID to delete
     private bool showCategoriesModal = false; // Variable to control categories modal visibility
@@ -336,6 +337,7 @@ else
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         isLoggedIn = authState.User.Identity.IsAuthenticated;
+        isAdmin = authState.User.IsInRole("Admin");
 
         string sql = @"
         SELECT c.CategoryName, COUNT(gc.IdGame) AS GameCount
