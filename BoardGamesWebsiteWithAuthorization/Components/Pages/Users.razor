@@ -9,8 +9,35 @@
 
 <PageTitle>Users</PageTitle>
 
-<h3>Users</h3>
+<style>
+    .user-container {
+        display: flex;
+        flex-wrap: wrap; /* Pozwala na zawijanie elementów do następnej linii */
+        justify-content: flex-start; /* Rozkłada użytkowników od lewej */
+    }
 
+    .user-box {
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 5px;
+        width: 500px; /* Stała szerokość boxu */
+        height: 400px; /* Stała wysokość boxu */
+        box-sizing: border-box; /* Umożliwia prawidłowe obliczenie szerokości i wysokości */
+        display: flex;
+        flex-direction: column; /* Umożliwia pionowe układanie zawartości */
+    }
+
+        .user-box img {
+            width: 100px; /* Ustal szerokość zdjęcia */
+            height: 100px; /* Ustal wysokość zdjęcia */
+            border-radius: 50%; /* Sprawia, że zdjęcie jest okrągłe */
+            object-fit: cover; /* Wypełnia całą przestrzeń i przycina, aby zachować proporcje */
+            margin-bottom: 10px; /* Dodaje odstęp między zdjęciem a tekstem */
+        }
+</style>
+
+<h3>Users</h3>
 
 @if (users == null)
 {
@@ -18,12 +45,27 @@
 }
 else
 {
-    @foreach (var u in users)
-    {
-        <p>
-            @u.UserName
-        </p>
-    }
+    <div class="user-container">
+        @foreach (var u in users)
+        {
+            <div class="user-box">
+                @if (!string.IsNullOrEmpty(u.UserPhoto))
+                {
+                    <img src="@u.UserPhoto" alt="User Photo" />
+                }
+                else
+                {
+                    <img src="path/to/default-image.jpg" alt="Default User Photo" />
+                }
+                <h4>@u.WebUserName</h4>
+                <p><strong>Name:</strong> @u.Name</p>
+                <p><strong>Second Name:</strong> @u.SecondName</p>
+                <p><strong>Address:</strong> @u.Adress</p>
+                <p><strong>Preferred Localization:</strong> @u.PrefferedLocalization</p>
+                <p><strong>Age:</strong> @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</p>
+            </div>
+        }
+    </div>
 }
 
 @code {

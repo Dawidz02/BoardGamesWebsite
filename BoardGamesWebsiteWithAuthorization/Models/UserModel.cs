@@ -1,10 +1,12 @@
-﻿namespace BoardGamesWebsiteWithAuthorization.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace BoardGamesWebsiteWithAuthorization.Models
 {
     public class UserModel
     {
         public string Id { get; set; } // Primary Key
-        public string Address { get; set; }
-        public string PreferredLocalization { get; set; }
+        public string Adress { get; set; }
+        public string PrefferedLocalization { get; set; }
         public string UserDescription { get; set; }
         public string UserName { get; set; }
         public string NormalizedUserName { get; set; }
@@ -21,6 +23,10 @@
         public bool LockoutEnabled { get; set; }
         public int AccessFailedCount { get; set; }
         public DateTime? DateOfBirth { get; set; }
+        public string Name { get; set; }
+        public string SecondName { get; set; }
+        public string WebUserName { get; set; }
+        public string UserPhoto { get; set; }
 
         public ICollection<FriendModel> Friends1 { get; set; }
         public ICollection<FriendModel> Friends2 { get; set; }
