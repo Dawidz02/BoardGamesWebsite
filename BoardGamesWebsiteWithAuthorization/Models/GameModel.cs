@@ -31,6 +31,9 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public List<GameImageModel> GameImages { get; set; } = new List<GameImageModel>();
         public List<GameModel> DLCs { get; set; }  // Add this to store related DLCs
         public string FeedbackMessage { get; set; }
+        public int SkillLevel { get; set; } // Add this line
+        public bool ReadyToPlay { get; set; }
+        public bool IsOwnedByUser { get; set; }
     }
 
 }

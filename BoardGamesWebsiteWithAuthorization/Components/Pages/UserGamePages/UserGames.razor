@@ -145,6 +145,17 @@
         position: relative; /* Ustalona pozycja */
     }
 
+    /* Add star styling */
+    .star {
+        font-size: 24px; /* Adjust the size of stars */
+        color: #ccc; /* Default star color (unfilled) */
+        transition: color 0.3s;
+    }
+
+        .star.filled {
+            color: gold; /* Filled star color */
+        }
+
 
 </style>
 
@@ -219,11 +230,38 @@ else
                             This game is an expansion for <strong>"@g.MainGameName"</strong>
                         </div>
                     }
+
+                    <!-- Dropdown for Skill Level -->
+                    <div>
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            <span class="star @((i <= g.SkillLevel) ? "filled" : "")">
+                                &#9733;
+                            </span>
+                        }
+                    </div>
+                    <label for="skillLevel">Skill Level:</label>
+                    <select id="skillLevel" @onchange="(e) => UpdateSkillLevel(g.Id, e.Value)">
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            <option value="@i" selected="@(g.SkillLevel == i)">
+                                @i
+                            </option>
+                        }
+                    </select>
+
+                    <!-- Checkbox for Ready to Play -->
+                    <div>
+                        <input type="checkbox" checked="@g.ReadyToPlay" @onchange="(e) => UpdateReadyToPlay(g.Id, e.Value != null && (bool)e.Value)" />
+                        <label>Ready to Play</label>
+                    </div>
+
+
                 </div>
             </div>
-
         }
     </div>
+
 
 
 }
@@ -277,7 +315,7 @@ else
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to delete this game and all its images?</p>
+                    <p>Are you sure you want to delete this from your games library?</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
@@ -331,17 +369,21 @@ else
 
         // SQL query to get user's games
         string gamesSql = @"
-    SELECT g.*, IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
+    SELECT
+    g.*,
+    ug.SkillLevel,
+    ug.ReadyToPlay,
+    IFNULL(GROUP_CONCAT(c.CategoryName SEPARATOR ', '), '') AS Categories,
     CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC,
     (SELECT MainGame.GameName FROM games AS MainGame
-    JOIN DLC ON MainGame.Id = DLC.MainGameId
-    WHERE DLC.DLCGameId = g.Id) AS MainGameName
-    FROM User_Game ug
-    JOIN games g ON ug.IdGame = g.Id
-    LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
-    LEFT JOIN Categories c ON gc.IdCategory = c.Id
-    WHERE ug.IdUser = @UserId
-    GROUP BY g.Id";
+     JOIN DLC ON MainGame.Id = DLC.MainGameId
+     WHERE DLC.DLCGameId = g.Id) AS MainGameName
+FROM User_Game ug
+JOIN games g ON ug.IdGame = g.Id
+LEFT JOIN Game_Category gc ON g.Id = gc.IdGame
+LEFT JOIN Categories c ON gc.IdCategory = c.Id
+WHERE ug.IdUser = @UserId
+GROUP BY g.Id, ug.SkillLevel, ug.ReadyToPlay;";
 
         // Load the user's games
         games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { UserId = userId }, _config.GetConnectionString("default"));
@@ -573,5 +615,49 @@ else
         showDeleteModal = false; // Zamknij modal
         StateHasChanged(); // Odśwież UI
     }
+
+    private async Task UpdateSkillLevel(int gameId, object skillLevelValue)
+    {
+        if (int.TryParse(skillLevelValue.ToString(), out int skillLevel))
+        {
+            string sql = "UPDATE User_Game SET SkillLevel = @SkillLevel WHERE IdGame = @IdGame";
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            string userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            await _data.SaveData(sql, new { SkillLevel = skillLevel, IdGame = gameId, UserId = userId }, _config.GetConnectionString("default"));
+
+            var game = games.FirstOrDefault(g => g.Id == gameId);
+            if (game != null)
+            {
+                game.SkillLevel = skillLevel;
+            }
+        }
+    }
+
+    private async Task UpdateReadyToPlay(int gameId, bool isReadyToPlay)
+    {
+        try
+        {
+            Console.WriteLine($"Updating game {gameId} ReadyToPlay to {isReadyToPlay}");
+
+            string sql = "UPDATE User_Game SET ReadyToPlay = @ReadyToPlay WHERE IdGame = @IdGame";
+            await _data.SaveData(sql, new { ReadyToPlay = isReadyToPlay, IdGame = gameId }, _config.GetConnectionString("default"));
+
+            // Update local state
+            var game = games.FirstOrDefault(g => g.Id == gameId);
+            if (game != null)
+            {
+                game.ReadyToPlay = isReadyToPlay; // Update local state
+            }
+
+            StateHasChanged(); // Ensure UI updates
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating ReadyToPlay status: {ex.Message}");
+        }
+    }
+
 
 } 

@@ -491,6 +491,12 @@ else
                 );
             }
 
+            // Add the isOwnedByUser property for styling
+            foreach (var game in filteredGames)
+            {
+                game.IsOwnedByUser = IsGameOwnedByUser(game.Id); // Ustaw flagę isOwnedByUser
+            }
+
             if (!string.IsNullOrEmpty(currentSortProperty) && currentSortProperty != nameof(GameModel.Categories))
             {
                 var propertyInfo = typeof(GameModel).GetProperty(currentSortProperty);
@@ -653,20 +659,23 @@ else
 
             var existingGameCountList = await _data.LoadData<int, dynamic>(checkSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
 
-            var game = games.FirstOrDefault(g => g.Id == gameId); // Znajdź odpowiednią grę
             if (existingGameCountList.FirstOrDefault() == 0)
             {
+                // Dodaj do bazy danych
                 string insertSql = @"
             INSERT INTO User_Game (IdUser, IdGame)
             VALUES (@IdUser, @IdGame)";
 
                 await _data.SaveData(insertSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
 
-                feedbackMessage = "Gra dodana do twojej kolekcji!"; // Ustaw komunikat
+                // Dodaj ID gry do listy posiadanych gier
+                ownedGameIds.Add(gameId); // Dodaj ID gry do ownedGameIds
+
+                feedbackMessage = "Gra dodana do twojej kolekcji!";
             }
             else
             {
-                feedbackMessage = "Już posiadasz tę grę."; // Ustaw komunikat o duplikacie
+                feedbackMessage = "Już posiadasz tę grę.";
             }
 
             // Ustaw widoczność dymka
@@ -678,8 +687,12 @@ else
                 isFeedbackVisible = false;
                 InvokeAsync(StateHasChanged); // Odśwież interfejs
             });
+
+            // Zaktualizuj UI
+            StateHasChanged(); // Odśwież komponent, aby zmiany były widoczne natychmiast
         }
     }
+
 
     private bool IsGameOwnedByUser(int gameId)
     {
