@@ -11,6 +11,8 @@ namespace BoardGamesWebsiteWithAuthorization.Data
         public string? UserDescription { get; set; }
         public string? Name { get; set; }
         public string? SecondName { get; set; }
+        public string? UserPhoto { get; set; }
+        public string? WebUserName  { get; set; }
     }
 
 }

@@ -3,6 +3,7 @@
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
 @using BoardGamesWebsiteWithAuthorization.Data
+@using Microsoft.EntityFrameworkCore
 
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
@@ -24,13 +25,18 @@
                 <label for="username" class="form-label">Username</label>
             </div>
             <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.WebUserName" class="form-control" placeholder="Please enter your username." />
+                <label for="web-user-name" class="form-label">WebUserName</label>
+                <ValidationMessage For="() => Input.WebUserName" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.Name" class="form-control" placeholder="Please enter your name." />
                 <label for="name" class="form-label">Name</label>
                 <ValidationMessage For="() => Input.Name" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.SecondName" class="form-control" placeholder="Please enter your secondname." />
-                <label for="secondName" class="form-label">SecondName</label>
+                <label for="second-name" class="form-label">SecondName</label>
                 <ValidationMessage For="() => Input.SecondName" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
@@ -52,6 +58,11 @@
                 <InputText @bind-Value="Input.PrefferedLocalization" class="form-control" placeholder="Please enter your Preffered Localization (city)." />
                 <label for="preffered-localization" class="form-label">PrefferedLocalization</label>
                 <ValidationMessage For="() => Input.PrefferedLocalization" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.UserPhoto" class="form-control" placeholder="Please enter your photo url." />
+                <label for="user-photo" class="form-label">UserPhoto</label>
+                <ValidationMessage For="() => Input.UserPhoto" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.UserDescription" class="form-control" placeholder="Please enter your description." />
@@ -83,6 +94,7 @@
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
 
         Input.UserName ??= user.UserName;
+        Input.WebUserName ??= user.WebUserName;
         Input.Name ??= user.Name;
         Input.SecondName ??= user.SecondName;
         Input.PhoneNumber ??= phoneNumber;
@@ -90,10 +102,23 @@
         Input.Adress ??= user.Adress;
         Input.PrefferedLocalization ??= user.PrefferedLocalization;
         Input.UserDescription ??= user.UserDescription;
+        Input.UserPhoto ??= user.UserPhoto;
     }
 
     private async Task OnValidSubmitAsync()
     {
+        // Sprawdzenie, czy WebUserName już istnieje
+        var existingUser = await UserManager.Users
+            .Where(u => u.WebUserName == Input.WebUserName && u.Id != user.Id) // Nie sprawdzaj swojego użytkownika
+            .FirstOrDefaultAsync();
+
+        if (existingUser != null)
+        {
+            // Jeśli WebUserName już istnieje, dodaj błąd do ModelState
+            RedirectManager.RedirectToCurrentPageWithStatus("Error: WebUserName is already taken.", HttpContext);
+            return;
+        }
+
         user.UserName = Input.UserName;
         user.PhoneNumber = Input.PhoneNumber;
         user.Name = Input.Name;
@@ -102,6 +127,8 @@
         user.Adress = Input.Adress;
         user.PrefferedLocalization = Input.PrefferedLocalization;
         user.UserDescription = Input.UserDescription;
+        user.UserPhoto = Input.UserPhoto;
+        user.WebUserName = Input.WebUserName;
 
         var updateResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
         if (!updateResult.Succeeded)
@@ -126,5 +153,7 @@
         public string? Adress { get; set; }
         public string? PrefferedLocalization { get; set; }
         public string? UserDescription { get; set; }
+        public string? UserPhoto { get; set; }
+        public string? WebUserName { get; set; }
     }
 }
