@@ -44,7 +44,13 @@
         padding: 10px; /* Padding for the card */
         background-color: #f9f9f9; /* Background color */
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Box shadow for depth */
+        transition: transform 0.2s; /* Smooth transform on hover */
     }
+
+        .game-card:hover {
+            transform: scale(1.05); /* Slight zoom on hover */
+        }
+
 
     .plus-card {
         border: 1px dashed #007bff; /* Dashed border to indicate a clickable action */

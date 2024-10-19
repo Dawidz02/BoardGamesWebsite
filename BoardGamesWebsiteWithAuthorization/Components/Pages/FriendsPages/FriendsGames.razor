@@ -1,0 +1,141 @@
+﻿@page "/friends/{friendId}/games"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models
+@using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager // Inject NavigationManager
+
+<PageTitle>Friend's Games</PageTitle>
+
+<h3>Friend's Game Catalog</h3>
+
+<!-- Back to Friends button -->
+<button class="btn btn-secondary mb-3" @onclick="GoBackToFriends">Back to Friends</button>
+
+<style>
+    .game-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .game-card {
+        position: relative;
+        width: 300px; /* Adjust this as necessary */
+        border: 1px solid #ddd; /* Border styling */
+        border-radius: 5px; /* Rounded corners */
+        padding: 10px; /* Padding for the card */
+        background-color: #f9f9f9; /* Background color */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Box shadow for depth */
+        transition: transform 0.2s; /* Smooth transform on hover */
+    }
+
+        .game-card:hover {
+            transform: scale(1.05); /* Slight zoom on hover */
+        }
+
+        .game-card img {
+            width: 100%; /* Dopasowanie szerokości do kontenera */
+            max-height: 200px; /* Ustal maksymalną wysokość obrazka */
+            object-fit: contain; /* Dopasowanie obrazka bez przycinania */
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: white; /* Ensure the background behind images is white */
+        }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .card-text {
+        margin-bottom: 10px;
+        max-height: 100px; /* Set a maximum height */
+        overflow: hidden; /* Hide overflow content */
+        text-overflow: ellipsis; /* Optional: show ellipsis for overflow text */
+        display: -webkit-box; /* For multiline truncation */
+        -webkit-line-clamp: 4; /* Limit to 4 lines */
+        -webkit-box-orient: vertical; /* Define box orientation */
+    }
+</style>
+
+<div class="game-container">
+    @if (games == null)
+    {
+        <p><em>Loading games...</em></p>
+    }
+    else if (!games.Any())
+    {
+        <p>This friend has no games in their catalog.</p>
+    }
+    else
+    {
+        @foreach (var game in games)
+        {
+            var mainImage = game.GameImages?.FirstOrDefault(img => img.IsMain);
+
+            <div class="game-card">
+                @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
+                {
+                    <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
+                }
+                else
+                {
+                    <img src="/path/to/default-image.jpg" alt="No Image" class="img-thumbnail" />
+                }
+
+                <div class="card-content">
+                    <div class="card-title">@game.GameName</div>
+                    <p class="card-text">@game.GameDescription</p>
+
+                    <!-- You can add more details here if needed -->
+                    <div>
+                        <strong>Publisher:</strong> @game.Publisher<br />
+                        <strong>Author:</strong> @game.Author<br />
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string FriendId { get; set; }
+    List<GameModel> games;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFriendGames();
+        foreach (var game in games)
+        {
+            string imageSql = "SELECT * FROM Game_Image WHERE IdGame = @IdGame";
+            var imageResults = await _data.LoadData<GameImageModel, dynamic>(imageSql, new { IdGame = game.Id }, _config.GetConnectionString("default"));
+            game.GameImages = imageResults.ToList();
+        }
+    }
+
+    private async Task LoadFriendGames()
+    {
+        // SQL query to load the friend's games based on their user ID
+        string sql = @"
+            SELECT g.*
+            FROM games g
+            JOIN User_Game ug ON g.Id = ug.IdGame
+            WHERE ug.IdUser = @FriendId";
+
+        games = await _data.LoadData<GameModel, dynamic>(sql, new { FriendId }, _config.GetConnectionString("default"));
+    }
+
+    // Method to navigate back to the friends list
+    private void GoBackToFriends()
+    {
+        NavigationManager.NavigateTo("/friends"); // Adjust the route as necessary
+    }
+}

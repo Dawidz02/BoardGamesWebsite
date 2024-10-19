@@ -41,19 +41,18 @@
 
     .button-container {
         display: flex;
-        gap: 10px; /* Odstęp między przyciskami */
-        margin-top: auto; /* Ustawienie przycisków na dole boxu */
+        gap: 10px; /* Space between buttons */
+        margin-top: auto; /* Align buttons to the bottom */
     }
 
     .invite-btn, .delete-btn {
-        padding: 3px 8px; /* Mniejsze przyciski */
+        padding: 3px 8px; /* Smaller buttons */
         background-color: #007bff;
         border: none;
         color: white;
         cursor: pointer;
         border-radius: 5px;
-        font-size: 12px; /* Zmniejszony tekst */
-        margin-right: 5px;
+        font-size: 12px; /* Reduced font size */
     }
 
     .delete-btn {
@@ -95,9 +94,17 @@ else
                     <p><strong>Preferred Localization:</strong> @u.PrefferedLocalization</p>
                     <p><strong>Age:</strong> @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</p>
 
-                    <!-- Przycisk do wysyłania i usuwania zaproszenia -->
+                    <!-- Display status or invite/delete buttons -->
                     <div class="button-container">
-                        @if (invitationSent.Contains(u.Id))
+                        @if (friends.Contains(u.Id))
+                        {
+                            <span>Friend</span>
+                        }
+                        else if (pendingInvitations.Contains(u.Id))
+                        {
+                            <span>Invitation is waiting</span>
+                        }
+                        else if (invitationSent.Contains(u.Id))
                         {
                             <button class="invite-btn" disabled>Invitation was sent</button>
                             <button class="delete-btn" @onclick="() => DeleteInvitation(u.Id)">Delete Invitation</button>
@@ -115,7 +122,9 @@ else
 
 @code {
     List<UserModel> users;
-    List<string> invitationSent = new List<string>(); // Lista użytkowników, do których wysłano zaproszenia
+    List<string> invitationSent = new List<string>(); // List of users you have sent invitations to
+    List<string> pendingInvitations = new List<string>(); // List of users who sent you invitations
+    List<string> friends = new List<string>(); // List of users who are already friends
     string loggedInUserName;
 
     protected override async Task OnInitializedAsync()
@@ -123,42 +132,74 @@ else
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        // Pobierz nazwę użytkownika zalogowanego
+        // Get the logged-in user's name
         loggedInUserName = user.Identity?.Name;
 
-        // Pobranie wszystkich użytkowników z bazy danych
+        // Load all users
         string sql = "select * from aspnetusers";
         users = await _data.LoadData<UserModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
 
-        // Pobranie listy użytkowników, do których wysłano zaproszenia
+        // Load information about friends, invitations sent, and invitations received
+        await LoadFriends();
         await LoadInvitationsSent();
+        await LoadPendingInvitations();
     }
 
-    // Metoda pobierająca zaproszenia już wysłane przez zalogowanego użytkownika
+    // Load the friends of the logged-in user
+    private async Task LoadFriends()
+    {
+        var loggedInUserId = await GetLoggedInUserId();
+
+        // SQL to fetch friends of the logged-in user
+        string sql = @"
+            select Id from aspnetusers
+            where Id in (
+                select IdUser1 from Friends where IdUser2 = @UserId
+                union
+                select IdUser2 from Friends where IdUser1 = @UserId
+            )";
+
+        var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserId = loggedInUserId }, _config.GetConnectionString("default"));
+        friends = result.Select(r => (string)r.Id).ToList();
+    }
+
+    // Load the invitations sent by the logged-in user
     private async Task LoadInvitationsSent()
     {
         var invitedBy = await GetLoggedInUserId();
 
-        // SQL do pobrania listy zaproszeń wysłanych przez zalogowanego użytkownika
+        // SQL to fetch the invitations sent by the logged-in user
         string sql = "select IdUser from Friend_Invitations where InvitedBy = @InvitedBy";
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { InvitedBy = invitedBy }, _config.GetConnectionString("default"));
 
         invitationSent = result.Select(r => (string)r.IdUser).ToList();
     }
 
+    // Load the invitations received by the logged-in user (pending invitations)
+    private async Task LoadPendingInvitations()
+    {
+        var loggedInUserId = await GetLoggedInUserId();
+
+        // SQL to fetch the invitations received by the logged-in user
+        string sql = "select InvitedBy from Friend_Invitations where IdUser = @LoggedInUserId";
+        var result = await _data.LoadData<dynamic, dynamic>(sql, new { LoggedInUserId = loggedInUserId }, _config.GetConnectionString("default"));
+
+        pendingInvitations = result.Select(r => (string)r.InvitedBy).ToList();
+    }
+
+    // Send an invitation to another user
     private async Task SendInvitation(string userId)
     {
         var invitedBy = await GetLoggedInUserId();
 
-        // Sprawdź, czy zaproszenie już istnieje
+        // Check if the invitation has not been sent already
         if (!invitationSent.Contains(userId))
         {
-            // SQL do wstawienia nowego zaproszenia do bazy danych
+            // SQL to insert a new invitation
             string sql = @"
                 INSERT INTO Friend_Invitations (IdUser, InvitedBy, SendingDate)
                 VALUES (@IdUser, @InvitedBy, @SendingDate);";
 
-            // Wstaw zaproszenie
             await _data.SaveData(sql, new
             {
                 IdUser = userId,
@@ -166,16 +207,17 @@ else
                 SendingDate = DateTime.Now
             }, _config.GetConnectionString("default"));
 
-            // Dodaj użytkownika do listy, do których wysłano zaproszenia
+            // Add the user to the list of users to whom invitations were sent
             invitationSent.Add(userId);
         }
     }
 
+    // Delete an invitation that has been sent
     private async Task DeleteInvitation(string userId)
     {
         var invitedBy = await GetLoggedInUserId();
 
-        // SQL do usunięcia zaproszenia z bazy danych
+        // SQL to delete the invitation
         string sql = "DELETE FROM Friend_Invitations WHERE IdUser = @IdUser AND InvitedBy = @InvitedBy";
 
         await _data.SaveData(sql, new
@@ -184,17 +226,17 @@ else
             InvitedBy = invitedBy
         }, _config.GetConnectionString("default"));
 
-        // Usuń użytkownika z listy zaproszonych
+        // Remove the user from the list of users to whom invitations were sent
         invitationSent.Remove(userId);
     }
 
+    // Get the logged-in user's Id
     private async Task<string> GetLoggedInUserId()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         string sql = "select Id from aspnetusers where UserName = @UserName";
 
-        // Pobierz Id zalogowanego użytkownika
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity?.Name }, _config.GetConnectionString("default"));
         return result?.FirstOrDefault()?.Id;
     }
