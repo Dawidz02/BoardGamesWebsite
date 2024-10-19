@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Components\Pages\NewFolder1\" />
     <Folder Include="Components\Pages\NewFolder\" />
   </ItemGroup>
 

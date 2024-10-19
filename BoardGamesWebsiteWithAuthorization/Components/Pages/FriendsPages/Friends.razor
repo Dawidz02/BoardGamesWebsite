@@ -1,0 +1,173 @@
+﻿@page "/friends"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models
+@using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Friends</PageTitle>
+
+<style>
+    .user-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .user-box {
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 5px;
+        width: 500px;
+        height: 400px;
+        box-sizing: border-box;
+        display: flex;
+        background-color: #f9f9f9;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+        .user-box img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+
+    .button-container {
+        margin-bottom: 20px;
+    }
+
+    .invitations-button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+        .invitations-button:hover {
+            background-color: #0056b3;
+        }
+
+    .delete-button {
+        padding: 10px 20px;
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+</style>
+
+<h3>Your Friends</h3>
+
+<div class="button-container">
+    <NavLink href="/friends/invitations" class="invitations-button">Invitations</NavLink>
+</div>
+
+@if (friends == null)
+{
+    <p><em>Loading friends...</em></p>
+}
+else if (!friends.Any())
+{
+    <p>You don't have any friends yet.</p>
+}
+else
+{
+    <div class="user-container">
+        @foreach (var friend in friends)
+        {
+            <div class="user-box">
+                @if (!string.IsNullOrEmpty(friend.UserPhoto))
+                {
+                    <img src="@friend.UserPhoto" alt="Friend Photo" />
+                }
+                else
+                {
+                    <img src="path/to/default-image.jpg" alt="Default Friend Photo" />
+                }
+                <h4>@friend.WebUserName</h4>
+                <p><strong>Name:</strong> @friend.Name</p>
+                <p><strong>Second Name:</strong> @friend.SecondName</p>
+                <p><strong>Address:</strong> @friend.Adress</p>
+                <p><strong>Preferred Localization:</strong> @friend.PrefferedLocalization</p>
+                <p><strong>Age:</strong> @(DateTime.Today.Year - (friend.DateOfBirth?.Year ?? 0))</p>
+
+                <button class="delete-button" @onclick="() => DeleteFriend(friend.Id)">
+                    Delete
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    List<UserModel> friends; // Lista znajomych
+    string loggedInUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Pobierz nazwę zalogowanego użytkownika
+        loggedInUserId = await GetLoggedInUserId();
+
+        // Pobranie znajomych z tabeli Friends
+        await LoadFriends();
+    }
+
+    private async Task LoadFriends()
+    {
+        // Pobieranie znajomych z tabeli Friends, w których zalogowany użytkownik występuje jako IdUser1 lub IdUser2
+        string sql = @"
+            select * from aspnetusers
+            where Id in (
+                select IdUser1 from Friends where IdUser2 = @UserId
+                union
+                select IdUser2 from Friends where IdUser1 = @UserId
+            )";
+
+        friends = await _data.LoadData<UserModel, dynamic>(sql, new { UserId = loggedInUserId }, _config.GetConnectionString("default"));
+    }
+
+    private async Task<string> GetLoggedInUserId()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        string sql = "select Id from aspnetusers where UserName = @UserName";
+        var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity?.Name }, _config.GetConnectionString("default"));
+
+        return result?.FirstOrDefault()?.Id;
+    }
+
+    private async Task DeleteFriend(string friendId)
+    {
+        // Delete the friend relationship from the Friends table
+        string sql = @"
+            delete from Friends
+            where (IdUser1 = @LoggedInUserId and IdUser2 = @FriendId)
+               or (IdUser1 = @FriendId and IdUser2 = @LoggedInUserId)";
+
+        await _data.SaveData(sql, new { LoggedInUserId = loggedInUserId, FriendId = friendId }, _config.GetConnectionString("default"));
+
+        // Refresh the friends list after deletion
+        await LoadFriends();
+    }
+}

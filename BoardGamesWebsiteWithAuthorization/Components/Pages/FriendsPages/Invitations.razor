@@ -1,0 +1,168 @@
+﻿@page "/friends/invitations"
+@rendermode InteractiveServer
+
+@using DataLibrary
+@using BoardGamesWebsiteWithAuthorization.Models
+@using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Friend Invitations</PageTitle>
+
+<style>
+    .invitation-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .invitation-box {
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 5px;
+        width: 500px;
+        height: 200px;
+        box-sizing: border-box;
+        display: flex;
+        background-color: #f9f9f9;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+        .invitation-box img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+
+    .button-container {
+        margin-top: 10px;
+    }
+
+    .accept-button, .decline-button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .accept-button {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .decline-button {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .accept-button:hover {
+        background-color: #218838;
+    }
+
+    .decline-button:hover {
+        background-color: #c82333;
+    }
+</style>
+
+<h3>Your Invitations</h3>
+
+@if (invitations == null)
+{
+    <p><em>Loading invitations...</em></p>
+}
+else if (!invitations.Any())
+{
+    <p>You don't have any invitations at the moment.</p>
+}
+else
+{
+    <div class="invitation-container">
+        @foreach (var invitation in invitations)
+        {
+            <div class="invitation-box">
+                <div>
+                    <h4>Invited By: @invitation.InvitedByUserName</h4>
+                    <p><strong>Date:</strong> @invitation.SendingDate.ToString("g")</p>
+                </div>
+
+                <div class="button-container">
+                    <button class="accept-button" @onclick="() => AcceptInvitation(invitation.Id)">Accept</button>
+                    <button class="decline-button" @onclick="() => DeclineInvitation(invitation.Id)">Decline</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    List<FriendInvitationModel> invitations; // Lista zaproszeń znajomych
+    string loggedInUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loggedInUserId = await GetLoggedInUserId();
+
+        // Pobranie zaproszeń do znajomych
+        await LoadInvitations();
+    }
+
+    private async Task LoadInvitations()
+    {
+        string sql = @"
+            select fi.Id, fi.InvitedBy, fi.SendingDate, u.UserName as InvitedByUserName
+            from Friend_Invitations fi
+            join aspnetusers u on fi.InvitedBy = u.Id
+            where fi.IdUser = @UserId";
+
+        invitations = await _data.LoadData<FriendInvitationModel, dynamic>(
+            sql,
+            new { UserId = loggedInUserId },
+            _config.GetConnectionString("default")
+        );
+    }
+
+    private async Task<string> GetLoggedInUserId()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        string sql = "select Id from aspnetusers where UserName = @UserName";
+        var result = await _data.LoadData<dynamic, dynamic>(
+            sql,
+            new { UserName = user.Identity?.Name },
+            _config.GetConnectionString("default")
+        );
+
+        return result?.FirstOrDefault()?.Id;
+    }
+
+    private async Task AcceptInvitation(int invitationId)
+    {
+        // Handle accepting the invitation here (e.g., move to Friends table)
+        string sql = @"
+            insert into Friends (IdUser1, IdUser2)
+            select IdUser, InvitedBy from Friend_Invitations where Id = @InvitationId;
+
+            delete from Friend_Invitations where Id = @InvitationId;
+        ";
+
+        await _data.SaveData(sql, new { InvitationId = invitationId }, _config.GetConnectionString("default"));
+        await LoadInvitations(); // Refresh invitations list
+    }
+
+    private async Task DeclineInvitation(int invitationId)
+    {
+        // Handle declining the invitation here
+        string sql = "delete from Friend_Invitations where Id = @InvitationId";
+
+        await _data.SaveData(sql, new { InvitationId = invitationId }, _config.GetConnectionString("default"));
+        await LoadInvitations(); // Refresh invitations list
+    }
+}

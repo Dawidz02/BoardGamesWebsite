@@ -2,18 +2,20 @@
 @rendermode InteractiveServer
 
 @using DataLibrary
-@using BoardGamesWebsiteWithAuthorization.Models;
+@using BoardGamesWebsiteWithAuthorization.Models
 @using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IDataAccess _data
 @inject IConfiguration _config
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Users</PageTitle>
 
 <style>
     .user-container {
         display: flex;
-        flex-wrap: wrap; /* Pozwala na zawijanie elementów do następnej linii */
-        justify-content: flex-start; /* Rozkłada użytkowników od lewej */
+        flex-wrap: wrap;
+        justify-content: flex-start;
     }
 
     .user-box {
@@ -21,20 +23,47 @@
         padding: 10px;
         margin: 10px;
         border-radius: 5px;
-        width: 500px; /* Stała szerokość boxu */
-        height: 400px; /* Stała wysokość boxu */
-        box-sizing: border-box; /* Umożliwia prawidłowe obliczenie szerokości i wysokości */
+        width: 500px;
+        height: 400px;
+        box-sizing: border-box;
         display: flex;
-        flex-direction: column; /* Umożliwia pionowe układanie zawartości */
+        background-color: #f9f9f9;
+        flex-direction: column;
     }
 
         .user-box img {
-            width: 100px; /* Ustal szerokość zdjęcia */
-            height: 100px; /* Ustal wysokość zdjęcia */
-            border-radius: 50%; /* Sprawia, że zdjęcie jest okrągłe */
-            object-fit: cover; /* Wypełnia całą przestrzeń i przycina, aby zachować proporcje */
-            margin-bottom: 10px; /* Dodaje odstęp między zdjęciem a tekstem */
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
         }
+
+    .button-container {
+        display: flex;
+        gap: 10px; /* Odstęp między przyciskami */
+        margin-top: auto; /* Ustawienie przycisków na dole boxu */
+    }
+
+    .invite-btn, .delete-btn {
+        padding: 3px 8px; /* Mniejsze przyciski */
+        background-color: #007bff;
+        border: none;
+        color: white;
+        cursor: pointer;
+        border-radius: 5px;
+        font-size: 12px; /* Zmniejszony tekst */
+        margin-right: 5px;
+    }
+
+    .delete-btn {
+        background-color: #dc3545;
+    }
+
+    .invite-btn[disabled] {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
 </style>
 
 <h3>Users</h3>
@@ -48,32 +77,125 @@ else
     <div class="user-container">
         @foreach (var u in users)
         {
-            <div class="user-box">
-                @if (!string.IsNullOrEmpty(u.UserPhoto))
-                {
-                    <img src="@u.UserPhoto" alt="User Photo" />
-                }
-                else
-                {
-                    <img src="path/to/default-image.jpg" alt="Default User Photo" />
-                }
-                <h4>@u.WebUserName</h4>
-                <p><strong>Name:</strong> @u.Name</p>
-                <p><strong>Second Name:</strong> @u.SecondName</p>
-                <p><strong>Address:</strong> @u.Adress</p>
-                <p><strong>Preferred Localization:</strong> @u.PrefferedLocalization</p>
-                <p><strong>Age:</strong> @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</p>
-            </div>
+            @if (u.UserName != loggedInUserName)
+            {
+                <div class="user-box">
+                    @if (!string.IsNullOrEmpty(u.UserPhoto))
+                    {
+                        <img src="@u.UserPhoto" alt="User Photo" />
+                    }
+                    else
+                    {
+                        <img src="path/to/default-image.jpg" alt="Default User Photo" />
+                    }
+                    <h4>@u.WebUserName</h4>
+                    <p><strong>Name:</strong> @u.Name</p>
+                    <p><strong>Second Name:</strong> @u.SecondName</p>
+                    <p><strong>Address:</strong> @u.Adress</p>
+                    <p><strong>Preferred Localization:</strong> @u.PrefferedLocalization</p>
+                    <p><strong>Age:</strong> @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</p>
+
+                    <!-- Przycisk do wysyłania i usuwania zaproszenia -->
+                    <div class="button-container">
+                        @if (invitationSent.Contains(u.Id))
+                        {
+                            <button class="invite-btn" disabled>Invitation was sent</button>
+                            <button class="delete-btn" @onclick="() => DeleteInvitation(u.Id)">Delete Invitation</button>
+                        }
+                        else
+                        {
+                            <button class="invite-btn" @onclick="() => SendInvitation(u.Id)">Send Invitation</button>
+                        }
+                    </div>
+                </div>
+            }
         }
     </div>
 }
 
 @code {
     List<UserModel> users;
+    List<string> invitationSent = new List<string>(); // Lista użytkowników, do których wysłano zaproszenia
+    string loggedInUserName;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Pobierz nazwę użytkownika zalogowanego
+        loggedInUserName = user.Identity?.Name;
+
+        // Pobranie wszystkich użytkowników z bazy danych
         string sql = "select * from aspnetusers";
         users = await _data.LoadData<UserModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+
+        // Pobranie listy użytkowników, do których wysłano zaproszenia
+        await LoadInvitationsSent();
+    }
+
+    // Metoda pobierająca zaproszenia już wysłane przez zalogowanego użytkownika
+    private async Task LoadInvitationsSent()
+    {
+        var invitedBy = await GetLoggedInUserId();
+
+        // SQL do pobrania listy zaproszeń wysłanych przez zalogowanego użytkownika
+        string sql = "select IdUser from Friend_Invitations where InvitedBy = @InvitedBy";
+        var result = await _data.LoadData<dynamic, dynamic>(sql, new { InvitedBy = invitedBy }, _config.GetConnectionString("default"));
+
+        invitationSent = result.Select(r => (string)r.IdUser).ToList();
+    }
+
+    private async Task SendInvitation(string userId)
+    {
+        var invitedBy = await GetLoggedInUserId();
+
+        // Sprawdź, czy zaproszenie już istnieje
+        if (!invitationSent.Contains(userId))
+        {
+            // SQL do wstawienia nowego zaproszenia do bazy danych
+            string sql = @"
+                INSERT INTO Friend_Invitations (IdUser, InvitedBy, SendingDate)
+                VALUES (@IdUser, @InvitedBy, @SendingDate);";
+
+            // Wstaw zaproszenie
+            await _data.SaveData(sql, new
+            {
+                IdUser = userId,
+                InvitedBy = invitedBy,
+                SendingDate = DateTime.Now
+            }, _config.GetConnectionString("default"));
+
+            // Dodaj użytkownika do listy, do których wysłano zaproszenia
+            invitationSent.Add(userId);
+        }
+    }
+
+    private async Task DeleteInvitation(string userId)
+    {
+        var invitedBy = await GetLoggedInUserId();
+
+        // SQL do usunięcia zaproszenia z bazy danych
+        string sql = "DELETE FROM Friend_Invitations WHERE IdUser = @IdUser AND InvitedBy = @InvitedBy";
+
+        await _data.SaveData(sql, new
+        {
+            IdUser = userId,
+            InvitedBy = invitedBy
+        }, _config.GetConnectionString("default"));
+
+        // Usuń użytkownika z listy zaproszonych
+        invitationSent.Remove(userId);
+    }
+
+    private async Task<string> GetLoggedInUserId()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        string sql = "select Id from aspnetusers where UserName = @UserName";
+
+        // Pobierz Id zalogowanego użytkownika
+        var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity?.Name }, _config.GetConnectionString("default"));
+        return result?.FirstOrDefault()?.Id;
     }
 }

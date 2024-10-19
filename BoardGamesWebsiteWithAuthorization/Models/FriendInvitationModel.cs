@@ -5,11 +5,11 @@ namespace BoardGamesWebsiteWithAuthorization.Models
     public class FriendInvitationModel
     {
         public int Id { get; set; }
-        public int IdUser { get; set; }
-        public UserModel User { get; set; }
-        public int InvitedBy { get; set; }
-        public UserModel InvitedUser { get; set; }
+        public string IdUser { get; set; }
+        public string InvitedBy { get; set; }  // Ensure this is a string to match the GUID
         public DateTime SendingDate { get; set; }
+        public string InvitedByUserName { get; set; }  // To hold the inviter's username
     }
+
 
 }
