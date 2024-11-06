@@ -8,7 +8,7 @@
 @inject IDataAccess _data
 @inject IConfiguration _config
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject NavigationManager NavigationManager // Inject NavigationManager
+@inject NavigationManager NavigationManager
 
 <PageTitle>Friend's Games</PageTitle>
 
@@ -31,19 +31,29 @@
         border: 1px solid #ddd; /* Border styling */
         border-radius: 5px; /* Rounded corners */
         padding: 10px; /* Padding for the card */
-        background-color: #f9f9f9; /* Background color */
+        background-color: #f9f9f9; /* Default background color */
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Box shadow for depth */
-        transition: transform 0.2s; /* Smooth transform on hover */
+        transition: transform 0.2s, background-color 0.2s; /* Smooth transform on hover and background-color */
     }
+
+        .game-card.ready {
+            background-color: #F0FFF0; /* Light green background for "Ready to Play" */
+            border-color: #c3e6cb; /* Slightly darker green border */
+        }
+
+        .game-card.notReady {
+            background-color: #FFEEEE; /* Light red background for "Not Ready" */
+            border-color: #c3e6cb; /* Slightly darker red border */
+        }
 
         .game-card:hover {
             transform: scale(1.05); /* Slight zoom on hover */
         }
 
         .game-card img {
-            width: 100%; /* Dopasowanie szerokości do kontenera */
-            max-height: 200px; /* Ustal maksymalną wysokość obrazka */
-            object-fit: contain; /* Dopasowanie obrazka bez przycinania */
+            width: 100%; /* Fit image to container width */
+            max-height: 200px; /* Set a maximum height */
+            object-fit: contain; /* Fit image without cropping */
             border-radius: 5px;
             margin-bottom: 10px;
             background-color: white; /* Ensure the background behind images is white */
@@ -64,24 +74,33 @@
         -webkit-line-clamp: 4; /* Limit to 4 lines */
         -webkit-box-orient: vertical; /* Define box orientation */
     }
-</style>
 
-<div class="game-container">
-    @if (games == null)
-    {
-        <p><em>Loading games...</em></p>
+    .star {
+        font-size: 24px; /* Adjust the size of stars */
+        color: #ccc; /* Default star color (unfilled) */
+        transition: color 0.3s;
     }
-    else if (!games.Any())
-    {
-        <p>This friend has no games in their catalog.</p>
-    }
-    else
-    {
-        @foreach (var game in games)
+
+        .star.filled {
+            color: gold; /* Filled star color */
+        }
+</style>
+@if (games == null)
+{
+    <p><em>Loading games...</em></p>
+}
+else if (!games.Any())
+{
+    <p>This friend has no games in their catalog.</p>
+}
+else
+{
+    <div class="game-container">
+        @foreach (var game in games.Where(g => !g.IsDLC))
         {
             var mainImage = game.GameImages?.FirstOrDefault(img => img.IsMain);
 
-            <div class="game-card">
+            <div class="game-card @(game.ReadyToPlay ? "ready" : "notReady")">
                 @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
                 {
                     <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
@@ -95,7 +114,21 @@
                     <div class="card-title">@game.GameName</div>
                     <p class="card-text">@game.GameDescription</p>
 
-                    <!-- You can add more details here if needed -->
+                    <!-- Skill Level display -->
+                    <div>
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            <span class="star @((i <= game.SkillLevel) ? "filled" : "")">
+                                &#9733;
+                            </span>
+                        }
+                    </div>
+
+                    <!-- Ready to Play status -->
+                    <div>
+                        <strong>Ready to Play:</strong> @(game.ReadyToPlay ? "Yes" : "No")
+                    </div>
+
                     <div>
                         <strong>Publisher:</strong> @game.Publisher<br />
                         <strong>Author:</strong> @game.Author<br />
@@ -103,8 +136,54 @@
                 </div>
             </div>
         }
-    }
 </div>
+
+        <!-- Nagłówek DLC -->
+        <h3 style="margin-top: 40px;">DLC:</h3>
+
+        <div class="game-container">
+            @foreach (var game in games.Where(g => g.IsDLC))
+            {
+                var mainImage = game.GameImages?.FirstOrDefault(img => img.IsMain);
+
+                <div class="game-card @(game.ReadyToPlay ? "ready" : "notReady")">
+                    @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
+                    {
+                        <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
+                    }
+                    else
+                    {
+                        <img src="/path/to/default-image.jpg" alt="No Image" class="img-thumbnail" />
+                    }
+
+                    <div class="card-content">
+                        <div class="card-title">@game.GameName</div>
+                        <p class="card-text">@game.GameDescription</p>
+
+                        <!-- Skill Level display -->
+                        <div>
+                            @for (int i = 1; i <= 10; i++)
+                            {
+                                <span class="star @((i <= game.SkillLevel) ? "filled" : "")">
+                                    &#9733;
+                                </span>
+                            }
+                        </div>
+
+                        <!-- Ready to Play status -->
+                        <div>
+                            <strong>Ready to Play:</strong> @(game.ReadyToPlay ? "Yes" : "No")
+                        </div>
+
+                        <div>
+                            <strong>Publisher:</strong> @game.Publisher<br />
+                            <strong>Author:</strong> @game.Author<br />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 
 @code {
     [Parameter] public string FriendId { get; set; }
@@ -123,17 +202,20 @@
 
     private async Task LoadFriendGames()
     {
-        // SQL query to load the friend's games based on their user ID
-        string sql = @"
-            SELECT g.*
-            FROM games g
-            JOIN User_Game ug ON g.Id = ug.IdGame
+        // SQL query to load the friend's games based on their user ID, including DLC information
+        string gamesSql = @"
+            SELECT
+                g.*,
+                ug.SkillLevel,
+                ug.ReadyToPlay,
+                CASE WHEN EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = g.Id) THEN 1 ELSE 0 END AS IsDLC
+            FROM User_Game ug
+            JOIN games g ON ug.IdGame = g.Id
             WHERE ug.IdUser = @FriendId";
 
-        games = await _data.LoadData<GameModel, dynamic>(sql, new { FriendId }, _config.GetConnectionString("default"));
+        games = await _data.LoadData<GameModel, dynamic>(gamesSql, new { FriendId }, _config.GetConnectionString("default"));
     }
 
-    // Method to navigate back to the friends list
     private void GoBackToFriends()
     {
         NavigationManager.NavigateTo("/friends"); // Adjust the route as necessary

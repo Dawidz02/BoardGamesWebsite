@@ -29,7 +29,14 @@
         display: flex;
         background-color: #f9f9f9;
         flex-direction: column;
+        transition: transform 0.3s ease; /* Smooth transition effect */
     }
+
+        .user-box:hover {
+            transform: scale(1.05); /* Enlarge the container slightly */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Add a shadow effect for emphasis */
+        }
+
 
         .user-box img {
             width: 100px;

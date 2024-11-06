@@ -30,15 +30,21 @@
         display: flex;
         background-color: #f9f9f9;
         flex-direction: column;
+        transition: transform 0.3s ease; /* Smooth transition effect */
     }
 
-    .user-box img {
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        object-fit: cover;
-        margin-bottom: 10px;
-    }
+        .user-box:hover {
+            transform: scale(1.02); /* Enlarge the container slightly */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Add a shadow effect for emphasis */
+        }   
+
+        .user-box img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
 
     .button-container {
         display: flex;
@@ -56,18 +62,18 @@
         text-decoration: none;
     }
 
-    .invitations-button:hover {
-        background-color: #0056b3;
-    }
+        .invitations-button:hover {
+            background-color: #0056b3;
+        }
 
     .delete-btn {
-        padding: 3px 8px; /* Smaller buttons */
+        padding: 3px 8px;
         background-color: #dc3545;
         border: none;
         color: white;
         cursor: pointer;
         border-radius: 5px;
-        font-size: 12px; /* Reduced font size */
+        font-size: 12px;
     }
 
     .games-btn {
@@ -78,6 +84,16 @@
         cursor: pointer;
         border-radius: 5px;
         font-size: 12px;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
     }
 </style>
 
@@ -118,7 +134,7 @@ else
 
                 <!-- Button Container for Delete and View Games Buttons -->
                 <div class="button-container">
-                    <button class="delete-btn" @onclick="() => DeleteFriend(friend.Id)">
+                    <button class="delete-btn" @onclick="() => ShowDeleteModal(friend.Id)">
                         Delete
                     </button>
                     <button class="games-btn" @onclick="() => NavigateToGameCatalog(friend.Id)">
@@ -130,25 +146,52 @@ else
     </div>
 }
 
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="close" aria-label="Close" @onclick="CloseDeleteModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this friend?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
+}
+
 @code {
-    List<UserModel> friends; // Lista znajomych
+    List<UserModel> friends; // List of friends
     string loggedInUserId;
+    bool showDeleteModal = false; // Control delete modal visibility
+    string friendIdToDelete; // Store friend ID to delete
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        // Pobierz ID zalogowanego użytkownika
+        // Get the logged-in user's ID
         loggedInUserId = await GetLoggedInUserId();
 
-        // Pobranie znajomych z tabeli Friends
+        // Load friends from the Friends table
         await LoadFriends();
     }
 
     private async Task LoadFriends()
     {
-        // Pobieranie znajomych z tabeli Friends, w których zalogowany użytkownik występuje jako IdUser1 lub IdUser2
+        // Load friends where the logged-in user is IdUser1 or IdUser2
         string sql = @"
             select * from aspnetusers
             where Id in (
@@ -171,7 +214,18 @@ else
         return result?.FirstOrDefault()?.Id;
     }
 
-    private async Task DeleteFriend(string friendId)
+    private void ShowDeleteModal(string friendId)
+    {
+        friendIdToDelete = friendId;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
     {
         // Delete the friend relationship from the Friends table
         string sql = @"
@@ -179,10 +233,11 @@ else
             where (IdUser1 = @LoggedInUserId and IdUser2 = @FriendId)
                or (IdUser1 = @FriendId and IdUser2 = @LoggedInUserId)";
 
-        await _data.SaveData(sql, new { LoggedInUserId = loggedInUserId, FriendId = friendId }, _config.GetConnectionString("default"));
+        await _data.SaveData(sql, new { LoggedInUserId = loggedInUserId, FriendId = friendIdToDelete }, _config.GetConnectionString("default"));
 
         // Refresh the friends list after deletion
         await LoadFriends();
+        showDeleteModal = false;
     }
 
     private void NavigateToGameCatalog(string friendId)

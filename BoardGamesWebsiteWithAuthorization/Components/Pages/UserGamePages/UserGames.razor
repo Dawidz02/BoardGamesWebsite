@@ -208,7 +208,8 @@
 else
 {
     <div class="game-container">
-        @foreach (var g in FilteredAndSortedGames)
+        <!-- Wyświetlanie zwykłych gier (nie-DLC) -->
+        @foreach (var g in FilteredAndSortedGames.Where(g => !g.IsDLC))
         {
             var mainImage = g.GameImages?.FirstOrDefault(img => img.IsMain);
 
@@ -228,13 +229,6 @@ else
                     }
 
                     <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
-
-                    @if (g.IsDLC)
-                    {
-                        <div class="alert alert-info text-center" role="alert">
-                            This game is an expansion for <strong>"@g.MainGameName"</strong>
-                        </div>
-                    }
 
                     <!-- Dropdown for Skill Level -->
                     <div>
@@ -260,16 +254,71 @@ else
                         <input type="checkbox" checked="@g.ReadyToPlay" @onchange="(e) => UpdateReadyToPlay(g.Id, e.Value != null && (bool)e.Value)" />
                         <label>Ready to Play</label>
                     </div>
-
-
                 </div>
             </div>
         }
     </div>
 
+        <!-- Nagłówek DLC -->
+    <h3 style="margin-top: 40px;">DLC:</h3>
 
+    <div class="game-container">
+            @foreach (var g in FilteredAndSortedGames.Where(g => g.IsDLC))
+            {
+            var mainImage = g.GameImages?.FirstOrDefault(img => img.IsMain);
 
+            <div class="game-card" style="text-decoration: none; color: inherit;">
+                <div class="card-content @(!isLoggedIn ? "no-actions" : "")">
+                    <div class="actions">
+                        <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteModal(g.Id)">Delete</button>
+                    </div>
+
+                    @if (mainImage != null && !string.IsNullOrEmpty(mainImage.ImageUrl))
+                    {
+                        <img src="@mainImage.ImageUrl" alt="Main Image" class="img-thumbnail" />
+                    }
+                    else
+                    {
+                        <img src="/path/to/default-image.jpg" alt="No Image" class="img-thumbnail" />
+                    }
+
+                    <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
+
+                    <!-- Informacja o głównej grze, do której DLC się odnosi -->
+                    <div class="alert alert-info text-center" role="alert">
+                        This game is an expansion for <strong>"@g.MainGameName"</strong>
+                    </div>
+
+                    <!-- Dropdown for Skill Level -->
+                    <div>
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            <span class="star @((i <= g.SkillLevel) ? "filled" : "")">
+                                &#9733;
+                            </span>
+                        }
+                    </div>
+                    <label for="skillLevel">Skill Level:</label>
+                    <select id="skillLevel" @onchange="(e) => UpdateSkillLevel(g.Id, e.Value)">
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            <option value="@i" selected="@(g.SkillLevel == i)">
+                                @i
+                            </option>
+                        }
+                    </select>
+
+                    <!-- Checkbox for Ready to Play -->
+                    <div>
+                        <input type="checkbox" checked="@g.ReadyToPlay" @onchange="(e) => UpdateReadyToPlay(g.Id, e.Value != null && (bool)e.Value)" />
+                        <label>Ready to Play</label>
+                    </div>
+                </div>
+            </div>
+            }
+     </div>
 }
+
 
 
 <!-- Modal for displaying categories -->
@@ -443,7 +492,7 @@ GROUP BY g.Id, ug.SkillLevel, ug.ReadyToPlay;";
                             g.Author.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                             g.Publisher.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
 
-            // Filter by selected categories
+            // Filtruj według wybranych kategorii
             if (selectedCategories.Any())
             {
                 filteredGames = filteredGames.Where(g =>
@@ -452,19 +501,27 @@ GROUP BY g.Id, ug.SkillLevel, ug.ReadyToPlay;";
                 );
             }
 
+            // Sortuj według właściwości wybranej do sortowania
             if (!string.IsNullOrEmpty(currentSortProperty) && currentSortProperty != nameof(GameModel.Categories))
             {
                 var propertyInfo = typeof(GameModel).GetProperty(currentSortProperty);
                 if (propertyInfo != null)
                 {
-                    return isAscending
-                        ? filteredGames.OrderBy(g => propertyInfo.GetValue(g)).ToList()
-                        : filteredGames.OrderByDescending(g => propertyInfo.GetValue(g)).ToList();
+                    filteredGames = isAscending
+                        ? filteredGames.OrderBy(g => propertyInfo.GetValue(g)).ThenBy(g => g.IsDLC).ToList()
+                        : filteredGames.OrderByDescending(g => propertyInfo.GetValue(g)).ThenBy(g => g.IsDLC).ToList();
                 }
             }
-            return filteredGames.ToList();
+            else
+            {
+                // Jeśli nie ma konkretnego sortowania, po prostu sortuj DLC na końcu
+                filteredGames = filteredGames.OrderBy(g => g.IsDLC).ToList();
+            }
+
+            return filteredGames;
         }
     }
+
 
     // Get selected categories as a comma-separated string
     private string GetSelectedCategoriesText()

@@ -201,7 +201,13 @@
     <p><em>Loading...</em></p>
 }
 else
+{<!-- Umieść to poza pętlą, w miejscu, gdzie generujesz karty gier -->
+@if (isFeedbackVisible)
 {
+    <div class="alert alert-info" style="position: fixed; top: 20px; right: 20px; z-index: 1050;">
+        @feedbackMessage
+    </div>
+}
     <div class="game-container">
         @foreach (var g in FilteredAndSortedGames)
         {
@@ -248,19 +254,22 @@ else
                 @if (isLoggedIn)
                 {
                     <div class="actions">
-                        <button class="btn btn-success btn-sm" @onclick="() => AddToMyGames(g.Id)">Add to My Games</button>
+                        @if (IsGameOwnedByUser(g.Id))
+                        {
+                            <!-- Render "Delete from My Games" button if the game is owned -->
+                            <button class="btn btn-danger btn-sm" @onclick="() => RemoveFromMyGames(g.Id)">Delete from My Games</button>
+                        }
+                        else
+                        {
+                            <!-- Render "Add to My Games" button if the game is not owned -->
+                            <button class="btn btn-success btn-sm" @onclick="() => AddToMyGames(g.Id)">Add to My Games</button>
+                        }
+
                         @if (isAdmin)
                         {
                             <a href="/games/edit/@g.Id" class="btn btn-warning btn-sm">Edit</a>
                             <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteModal(g.Id)">Delete</button>
                         }
-                    </div>
-                }
-
-                @if (isFeedbackVisible)
-                {
-                    <div class="alert alert-info" style="position: fixed; top: 20px; right: 20px; z-index: 1050;">
-                        @feedbackMessage
                     </div>
                 }
             </div>
@@ -475,7 +484,92 @@ else
         showDeleteModal = false; // Close the modal
         StateHasChanged(); // Refresh UI
     }
+    
 
+    private async Task AddToMyGames(int gameId)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            // Sprawdź, czy gra już została dodana przez tego użytkownika
+            string checkSql = @"
+        SELECT COUNT(*) FROM User_Game
+        WHERE IdUser = @IdUser AND IdGame = @IdGame";
+
+            var existingGameCountList = await _data.LoadData<int, dynamic>(checkSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
+
+            if (existingGameCountList.FirstOrDefault() == 0)
+            {
+                // Dodaj do bazy danych
+                string insertSql = @"
+            INSERT INTO User_Game (IdUser, IdGame)
+            VALUES (@IdUser, @IdGame)";
+
+                await _data.SaveData(insertSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
+
+                // Dodaj ID gry do listy posiadanych gier
+                ownedGameIds.Add(gameId); // Dodaj ID gry do ownedGameIds
+
+                feedbackMessage = "Gra dodana do twojej kolekcji!";
+            }
+            else
+            {
+                feedbackMessage = "Już posiadasz tę grę.";
+            }
+
+            // Ustaw widoczność dymka
+            isFeedbackVisible = true;
+
+            // Uruchom timer do ukrycia dymka po 3 sekundach
+            _ = Task.Delay(3000).ContinueWith(_ =>
+            {
+                isFeedbackVisible = false;
+                InvokeAsync(StateHasChanged); // Odśwież interfejs
+            });
+
+            // Zaktualizuj UI
+            StateHasChanged(); // Odśwież komponent, aby zmiany były widoczne natychmiast
+        }
+    }
+
+    private async Task RemoveFromMyGames(int gameId)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            // Usuń grę z bazy danych
+            string deleteSql = @"
+        DELETE FROM User_Game
+        WHERE IdUser = @IdUser AND IdGame = @IdGame";
+
+            await _data.SaveData(deleteSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
+
+            // Usuń ID gry z listy ownedGameIds
+            ownedGameIds.Remove(gameId); // Usuń ID gry z ownedGameIds
+
+            // Ustaw wiadomość o powodzeniu
+            feedbackMessage = "Gra została usunięta z twojej kolekcji.";
+
+            // Ustaw widoczność dymka
+            isFeedbackVisible = true;
+
+            // Uruchom timer do ukrycia dymka po 3 sekundach
+            _ = Task.Delay(3000).ContinueWith(_ =>
+            {
+                isFeedbackVisible = false;
+                InvokeAsync(StateHasChanged); // Odśwież interfejs
+            });
+
+            // Zaktualizuj UI
+            StateHasChanged(); // Odśwież komponent, aby zmiany były widoczne natychmiast
+        }
+    }
 
 
     // Filter and sort games based on search query and selected categories
@@ -648,57 +742,6 @@ else
         }
         return "background-color: #007bff; color: white;"; // Default blue background
     }
-
-
-    private async Task AddToMyGames(int gameId)
-    {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (!string.IsNullOrEmpty(userId))
-        {
-            // Sprawdź, czy gra już została dodana przez tego użytkownika
-            string checkSql = @"
-        SELECT COUNT(*) FROM User_Game
-        WHERE IdUser = @IdUser AND IdGame = @IdGame";
-
-            var existingGameCountList = await _data.LoadData<int, dynamic>(checkSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
-
-            if (existingGameCountList.FirstOrDefault() == 0)
-            {
-                // Dodaj do bazy danych
-                string insertSql = @"
-            INSERT INTO User_Game (IdUser, IdGame)
-            VALUES (@IdUser, @IdGame)";
-
-                await _data.SaveData(insertSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
-
-                // Dodaj ID gry do listy posiadanych gier
-                ownedGameIds.Add(gameId); // Dodaj ID gry do ownedGameIds
-
-                feedbackMessage = "Gra dodana do twojej kolekcji!";
-            }
-            else
-            {
-                feedbackMessage = "Już posiadasz tę grę.";
-            }
-
-            // Ustaw widoczność dymka
-            isFeedbackVisible = true;
-
-            // Uruchom timer do ukrycia dymka po 3 sekundach
-            _ = Task.Delay(3000).ContinueWith(_ =>
-            {
-                isFeedbackVisible = false;
-                InvokeAsync(StateHasChanged); // Odśwież interfejs
-            });
-
-            // Zaktualizuj UI
-            StateHasChanged(); // Odśwież komponent, aby zmiany były widoczne natychmiast
-        }
-    }
-
 
     private bool IsGameOwnedByUser(int gameId)
     {

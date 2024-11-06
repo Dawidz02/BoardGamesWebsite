@@ -8,6 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Components\Pages\NewFolder1\**" />
+    <Compile Remove="Components\Pages\NewFolder\**" />
+    <Content Remove="Components\Pages\NewFolder1\**" />
+    <Content Remove="Components\Pages\NewFolder\**" />
+    <EmbeddedResource Remove="Components\Pages\NewFolder1\**" />
+    <EmbeddedResource Remove="Components\Pages\NewFolder\**" />
+    <None Remove="Components\Pages\NewFolder1\**" />
+    <None Remove="Components\Pages\NewFolder\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid" Version="8.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.10" />
@@ -21,11 +32,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataLibrary\DataLibrary.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Components\Pages\NewFolder1\" />
-    <Folder Include="Components\Pages\NewFolder\" />
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
