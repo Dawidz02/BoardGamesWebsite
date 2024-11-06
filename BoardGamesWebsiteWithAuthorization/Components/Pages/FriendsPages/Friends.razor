@@ -5,6 +5,8 @@
 @using BoardGamesWebsiteWithAuthorization.Models
 @using Microsoft.Extensions.Configuration
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Text
+@using System.Text.RegularExpressions
 @inject NavigationManager NavigationManager
 @inject IDataAccess _data
 @inject IConfiguration _config
@@ -20,23 +22,25 @@
     }
 
     .user-box {
-        border: 1px solid #ccc;
-        padding: 10px;
-        margin: 10px;
-        border-radius: 5px;
-        width: 500px;
-        height: 400px;
-        box-sizing: border-box;
+        width: 300px;
+        border-radius: 15px;
+        background: #ffffff;
+        color: #333;
+        padding: 20px;
+        text-align: center;
         display: flex;
-        background-color: #f9f9f9;
         flex-direction: column;
-        transition: transform 0.3s ease; /* Smooth transition effect */
+        align-items: center;
+        margin: 10px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
     }
 
         .user-box:hover {
-            transform: scale(1.02); /* Enlarge the container slightly */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Add a shadow effect for emphasis */
-        }   
+            transform: scale(1.05);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        }
 
         .user-box img {
             width: 100px;
@@ -44,32 +48,67 @@
             border-radius: 50%;
             object-fit: cover;
             margin-bottom: 10px;
+            border: 2px solid #e0e0e0;
         }
+
+    .card-title {
+        font-weight: bold;
+        font-size: 18px;
+        margin: 5px 0;
+        color: #333;
+    }
+
+    .card-text {
+        font-size: 14px;
+        margin: 5px 0;
+        color: #777;
+    }
+
+    .user-stats {
+        display: flex;
+        justify-content: space-around;
+        width: 100%;
+        margin-top: 10px;
+    }
+
+        .user-stats div {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+            .user-stats div span:first-child {
+                font-weight: bold;
+                font-size: 16px;
+                color: #333;
+            }
 
     .button-container {
         display: flex;
-        gap: 10px; /* Space between buttons */
-        margin-top: auto; /* Align buttons to the bottom */
+        gap: 10px;
+        margin-top: 0px;
     }
 
     .delete-btn {
+        margin-top: 10px;
         padding: 3px 8px;
-        background-color: #dc3545;
         border: none;
         color: white;
         cursor: pointer;
         border-radius: 5px;
-        font-size: 12px;
+        font-size: 16px;
+        background-color: #d6c48e;
     }
 
     .games-btn {
-        padding: 3px 8px;
+        margin-top: 10px;
         background-color: #28a745;
+        padding: 3px 8px;
         border: none;
         color: white;
         cursor: pointer;
         border-radius: 5px;
-        font-size: 12px;
+        font-size: 16px;
     }
 
     .modal-backdrop {
@@ -81,12 +120,35 @@
         background-color: rgba(0, 0, 0, 0.5);
         z-index: 1040;
     }
+
+    .search-container {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* Add space between the search input and button */
+        margin-bottom: 20px;
+    }
+
+    .search-input {
+        width: 100%;
+        max-width: 600px;
+        padding: 10px;
+        font-size: 14px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+
+    .highlight {
+        font-weight: bold;
+        background-color: #FFE4C4;
+        position: relative;
+    }
 </style>
 
 <h3>Your Friends</h3>
 
-<div class="button-container">
-    <NavLink href="/friends/invitations" class="btn btn-primary mb-3" style="margin-left: 5px;">Invitations</NavLink>
+<div class="search-container">
+    <input type="text" placeholder="Search by username, name, or surname" @bind="searchTerm" @bind:event="oninput" class="search-input" />
+    <NavLink href="/friends/invitations" class="btn btn-primary">Invitations</NavLink>
 </div>
 
 @if (friends == null)
@@ -103,22 +165,16 @@ else
         @foreach (var friend in friends)
         {
             <div class="user-box">
-                @if (!string.IsNullOrEmpty(friend.UserPhoto))
-                {
-                    <img src="@friend.UserPhoto" alt="Friend Photo" />
-                }
-                else
-                {
-                    <img src="path/to/default-image.jpg" alt="Default Friend Photo" />
-                }
-                <h4>@friend.WebUserName</h4>
-                <p><strong>Name:</strong> @friend.Name</p>
-                <p><strong>Second Name:</strong> @friend.SecondName</p>
-                <p><strong>Address:</strong> @friend.Adress</p>
-                <p><strong>Preferred Localization:</strong> @friend.PrefferedLocalization</p>
-                <p><strong>Age:</strong> @(DateTime.Today.Year - (friend.DateOfBirth?.Year ?? 0))</p>
+                <img src="@(!string.IsNullOrEmpty(friend.UserPhoto) ? friend.UserPhoto : "path/to/default-image.jpg")" alt="User Photo" />
+                <div class="card-title">@HighlightText(friend.WebUserName, searchTerm)</div>
+                <div class="card-text">
+                    <span>@HighlightText(friend.Name, searchTerm)</span>
+                    <span>@HighlightText(friend.SecondName, searchTerm)</span>
+                </div>
+                <div class="card-text">Age: @(DateTime.Today.Year - (friend.DateOfBirth?.Year ?? 0))</div>
+                <div class="card-text">Address: @friend.Adress</div>
+                <div class="card-text">Preferred Localization: @friend.PrefferedLocalization</div>
 
-                <!-- Button Container for Delete and View Games Buttons -->
                 <div class="button-container">
                     <button class="delete-btn" @onclick="() => ShowDeleteModal(friend.Id)">
                         Delete
@@ -132,7 +188,6 @@ else
     </div>
 }
 
-<!-- Delete Confirmation Modal -->
 @if (showDeleteModal)
 {
     <div class="modal show" tabindex="-1" style="display: block;" role="dialog">
@@ -154,30 +209,27 @@ else
             </div>
         </div>
     </div>
-    <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
+    <div class="modal-backdrop fade show"></div>
 }
 
 @code {
-    List<UserModel> friends; // List of friends
+    List<UserModel> friends;
     string loggedInUserId;
-    bool showDeleteModal = false; // Control delete modal visibility
-    string friendIdToDelete; // Store friend ID to delete
+    bool showDeleteModal = false;
+    string friendIdToDelete;
+    string searchTerm = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        // Get the logged-in user's ID
         loggedInUserId = await GetLoggedInUserId();
-
-        // Load friends from the Friends table
         await LoadFriends();
     }
 
     private async Task LoadFriends()
     {
-        // Load friends where the logged-in user is IdUser1 or IdUser2
         string sql = @"
             select * from aspnetusers
             where Id in (
@@ -213,22 +265,40 @@ else
 
     private async Task ConfirmDelete()
     {
-        // Delete the friend relationship from the Friends table
         string sql = @"
             delete from Friends
             where (IdUser1 = @LoggedInUserId and IdUser2 = @FriendId)
                or (IdUser1 = @FriendId and IdUser2 = @LoggedInUserId)";
 
         await _data.SaveData(sql, new { LoggedInUserId = loggedInUserId, FriendId = friendIdToDelete }, _config.GetConnectionString("default"));
-
-        // Refresh the friends list after deletion
         await LoadFriends();
         showDeleteModal = false;
     }
 
     private void NavigateToGameCatalog(string friendId)
     {
-        // Navigate to the friend's game catalog page, passing the friend's ID in the URL
         NavigationManager.NavigateTo($"/friends/{friendId}/games");
+    }
+
+    private MarkupString HighlightText(string text, string searchQuery)
+    {
+        if (string.IsNullOrEmpty(searchQuery) || string.IsNullOrEmpty(text))
+        {
+            return (MarkupString)text;
+        }
+
+        // Escape any special characters in the search query to use in regex
+        var regexSearch = Regex.Escape(searchQuery);
+
+        // Use a case-insensitive regex to find all occurrences of the search term
+        var regex = new Regex(regexSearch, RegexOptions.IgnoreCase);
+
+        // Replace all occurrences of the search term with a highlighted span
+        var highlightedText = regex.Replace(text, match =>
+        {
+            return $"<span class='highlight'>{match.Value}</span>";
+        });
+
+        return (MarkupString)highlightedText;
     }
 }

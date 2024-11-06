@@ -20,23 +20,24 @@
     }
 
     .user-box {
-        border: 1px solid #ccc;
-        padding: 10px;
-        margin: 10px;
-        border-radius: 5px;
-        width: 500px;
-        height: 200px; /* Zmniejszamy wysokość, by zdjęcie i dane się zmieściły */
-        box-sizing: border-box;
+        width: 300px;
+        border-radius: 15px;
+        background: #ffffff; /* Pure white background */
+        color: #333; /* Darker text color for better contrast */
+        padding: 20px;
+        text-align: center;
         display: flex;
-        background-color: #f9f9f9;
-        flex-direction: row; /* Ustawiamy układ w wierszu */
-        align-items: center; /* Wyrównanie w pionie */
+        flex-direction: column;
+        align-items: center;
+        margin: 10px;
+        border: 1px solid #e0e0e0; /* Light gray border to define the edges */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Very light shadow for a soft effect */
         transition: transform 0.3s ease;
     }
 
         .user-box:hover {
             transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow on hover */
         }
 
         .user-box img {
@@ -44,73 +45,84 @@
             height: 100px;
             border-radius: 50%;
             object-fit: cover;
-            margin-right: 15px; /* Odstęp między zdjęciem a danymi użytkownika */
+            margin-bottom: 10px;
+            border: 2px solid #e0e0e0; /* Light gray border around the image */
         }
-
-    .card-content {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        height: 100%; /* Ustawiamy, by kontener wypełniał całą dostępną wysokość */
-    }
 
     .card-title {
         font-weight: bold;
-        font-size: 16px;
+        font-size: 18px;
+        margin: 5px 0;
+        color: #333; /* Dark text for title */
     }
 
     .card-text {
         font-size: 14px;
-        margin-bottom: 5px;
+        margin: 5px 0;
+        color: #777; /* Light gray text for better contrast */
     }
 
-    .card-name {
-        font-size: 16px;
+    .user-stats {
+        display: flex;
+        justify-content: space-around;
+        width: 100%;
+        margin-top: 10px;
     }
 
-    .card-surname {
-        font-size: 16px;
-        margin-left: 2px; /* Odstęp między imieniem a nazwiskiem */
-    }
+        .user-stats div {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+            .user-stats div span:first-child {
+                font-weight: bold;
+                font-size: 16px;
+                color: #333; /* Dark text for stats */
+            }
 
     .button-container {
         display: flex;
         gap: 10px;
-        margin-top: auto;
+        margin-top: 15px;
     }
 
     .invite-btn, .delete-btn {
-        padding: 3px 8px;
-        background-color: #007bff;
+        padding: 8px 16px;
+        font-size: 14px;
+        border-radius: 5px;
+        cursor: pointer;
         border: none;
         color: white;
-        cursor: pointer;
-        border-radius: 5px;
-        font-size: 12px;
+    }
+
+    .invite-btn {
+        background-color: #d6c48e; /* Soft beige for the invite button */
     }
 
     .delete-btn {
-        background-color: #dc3545;
+        background-color: #dc3545; /* Red button for delete action */
     }
 
-    .invite-btn[disabled] {
-        background-color: #ccc;
+    .invite-btn:disabled {
+        background-color: #d6c48e; /* Very light beige for disabled button */
         cursor: not-allowed;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 8px;
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        font-size: 14px;
     }
 
     .highlight {
         font-weight: bold; /* Pogrubienie tekstu */
         background-color: #FFE4C4; /* Kolor tła */
         position: relative; /* Ustalona pozycja */
+    }
+
+    .search-input {
+        width: 100%; /* Makes the search bar take up 100% of the available width */
+        max-width: 600px; /* Optional: Sets a maximum width to avoid it becoming too wide */
+        padding: 10px;
+        font-size: 14px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        margin-bottom: 20px; /* Add space below the search bar */
     }
 
 </style>
@@ -130,49 +142,46 @@ else
         {
             @if (u.UserName != loggedInUserName)
             {
-                // Sprawdzenie, czy użytkownik jest już przyjacielem lub oczekuje na zaproszenie
                 var isFriend = friends.Contains(u.Id);
                 var isPendingInvitation = pendingInvitations.Contains(u.Id);
                 var isInvitationSent = invitationSent.Contains(u.Id);
 
                 <div class="user-box">
-                    <!-- Zdjęcie po lewej stronie -->
-                    <img src="@(!string.IsNullOrEmpty(u.UserPhoto) ? u.UserPhoto : "path/to/default-image.jpg")" alt="User Photo" class="img-thumbnail" />
+                    <img src="@(!string.IsNullOrEmpty(u.UserPhoto) ? u.UserPhoto : "path/to/default-image.jpg")" alt="User Photo" />
 
-                    <!-- Dane użytkownika po prawej stronie -->
-                    <div class="card-content">
-                        <a href="/users/details/@u.Id" style="text-decoration: none; color: inherit;">
-                            <div class="card-title">@HighlightText(u.WebUserName, searchTerm)</div>
-                        </a>
-                        <!-- Wyświetlamy imię i nazwisko obok siebie -->
-                        <div class="card-name-surname">
-                            <span class="card-name">@HighlightText(u.Name, searchTerm)</span>
-                            <span class="card-surname">@HighlightText(u.SecondName, searchTerm)</span>
-                        </div>
-                        <div class="card-text">Age: @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</div>
-                        <div class="card-text">Address: @u.Adress</div>
-                        <div class="card-text">Preferred Localization: @u.PrefferedLocalization</div> <!-- Nowy element -->
-                        <!-- Button actions (invite/delete) based on user status -->
-                        <div class="button-container">
-                            @if (isFriend)
-                            {
-                                <span class="friend-status">Friend</span>
-                            }
-                            else if (isPendingInvitation)
-                            {
-                                <span class="invitation-status">Invitation is waiting</span>
-                            }
-                            else if (isInvitationSent)
-                            {
-                                <button class="invite-btn" disabled>Invitation was sent</button>
-                                <button class="delete-btn" @onclick="() => DeleteInvitation(u.Id)">Delete Invitation</button>
-                            }
-                            else
-                            {
-                                <button class="invite-btn" @onclick="() => SendInvitation(u.Id)">Send Invitation</button>
-                            }
-                        </div>
+                    <div class="card-title">@HighlightText(u.WebUserName, searchTerm)</div>
+                    <div class="card-text">
+                        <span>@HighlightText(u.Name, searchTerm)</span>
+                        <span>@HighlightText(u.SecondName, searchTerm)</span>
                     </div>
+                    <div class="card-text">Age: @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</div>
+                    <div class="card-text">Address: @u.Adress</div>
+                    <div class="card-text">Preferred Localization: @u.PrefferedLocalization</div>
+
+                    <div class="button-container">
+                        @if (isFriend)
+                        {
+                            <span>Friend</span>
+                        }
+                        else if (isPendingInvitation)
+                        {
+                            <span>Invitation is waiting</span>
+                        }
+                        else if (isInvitationSent)
+                        {
+                            <!-- "X" button on the left -->
+                            <button class="delete-btn" @onclick="() => DeleteInvitation(u.Id)">
+                                <span style="font-size: 12px; font-weight: bold;">X</span>
+                            </button>
+                            <button class="invite-btn" disabled>Invitation was sent</button>
+                        }
+                        else
+                        {
+                            <button class="invite-btn" @onclick="() => SendInvitation(u.Id)">Send Invitation</button>
+                        }
+                    </div>
+
+
                 </div>
             }
         }
@@ -213,7 +222,6 @@ else
                             u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
                             u.SecondName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
 
-            // Filtruj na podstawie innych kryteriów, jeśli są wybrane, np. lokalizacja, wiek itp.
             if (!string.IsNullOrEmpty(searchTerm))
             {
                 filteredUsers = filteredUsers.Where(u =>
@@ -223,24 +231,6 @@ else
             }
             return filteredUsers.ToList();
         }
-    }
-
-
-
-    private string HighlightText(string text)
-    {
-        if (string.IsNullOrWhiteSpace(searchTerm) || string.IsNullOrWhiteSpace(text))
-        {
-            return text;
-        }
-
-        string highlightedText = System.Text.RegularExpressions.Regex.Replace(
-            text,
-            System.Text.RegularExpressions.Regex.Escape(searchTerm),
-            match => $"<span class=\"highlight\">{match.Value}</span>",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        return highlightedText;
     }
 
     private async Task LoadFriends()
@@ -304,8 +294,8 @@ else
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         string sql = "select Id from aspnetusers where UserName = @UserName";
-        var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity?.Name }, _config.GetConnectionString("default"));
-        return result?.FirstOrDefault()?.Id;
+        var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity.Name }, _config.GetConnectionString("default"));
+        return result.FirstOrDefault()?.Id;
     }
 
     // Funkcja podświetlania tekstu w wynikach wyszukiwania
