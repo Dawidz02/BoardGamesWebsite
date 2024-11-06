@@ -52,20 +52,6 @@
         margin-top: auto; /* Align buttons to the bottom */
     }
 
-    .invitations-button {
-        padding: 10px 20px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-        .invitations-button:hover {
-            background-color: #0056b3;
-        }
-
     .delete-btn {
         padding: 3px 8px;
         background-color: #dc3545;
@@ -100,7 +86,7 @@
 <h3>Your Friends</h3>
 
 <div class="button-container">
-    <NavLink href="/friends/invitations" class="invitations-button">Invitations</NavLink>
+    <NavLink href="/friends/invitations" class="btn btn-primary mb-3" style="margin-left: 5px;">Invitations</NavLink>
 </div>
 
 @if (friends == null)

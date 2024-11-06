@@ -5,6 +5,7 @@
 @using BoardGamesWebsiteWithAuthorization.Models
 @using Microsoft.Extensions.Configuration
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Text
 @inject IDataAccess _data
 @inject IConfiguration _config
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -24,42 +25,68 @@
         margin: 10px;
         border-radius: 5px;
         width: 500px;
-        height: 400px;
+        height: 200px; /* Zmniejszamy wysokość, by zdjęcie i dane się zmieściły */
         box-sizing: border-box;
         display: flex;
         background-color: #f9f9f9;
-        flex-direction: column;
-        transition: transform 0.3s ease; /* Smooth transition effect */
+        flex-direction: row; /* Ustawiamy układ w wierszu */
+        align-items: center; /* Wyrównanie w pionie */
+        transition: transform 0.3s ease;
     }
 
         .user-box:hover {
-            transform: scale(1.05); /* Enlarge the container slightly */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Add a shadow effect for emphasis */
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
-
 
         .user-box img {
             width: 100px;
             height: 100px;
             border-radius: 50%;
             object-fit: cover;
-            margin-bottom: 10px;
+            margin-right: 15px; /* Odstęp między zdjęciem a danymi użytkownika */
         }
+
+    .card-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%; /* Ustawiamy, by kontener wypełniał całą dostępną wysokość */
+    }
+
+    .card-title {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .card-text {
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+
+    .card-name {
+        font-size: 16px;
+    }
+
+    .card-surname {
+        font-size: 16px;
+        margin-left: 2px; /* Odstęp między imieniem a nazwiskiem */
+    }
 
     .button-container {
         display: flex;
-        gap: 10px; /* Space between buttons */
-        margin-top: auto; /* Align buttons to the bottom */
+        gap: 10px;
+        margin-top: auto;
     }
 
     .invite-btn, .delete-btn {
-        padding: 3px 8px; /* Smaller buttons */
+        padding: 3px 8px;
         background-color: #007bff;
         border: none;
         color: white;
         cursor: pointer;
         border-radius: 5px;
-        font-size: 12px; /* Reduced font size */
+        font-size: 12px;
     }
 
     .delete-btn {
@@ -70,56 +97,81 @@
         background-color: #ccc;
         cursor: not-allowed;
     }
+
+    .search-input {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+
+    .highlight {
+        font-weight: bold; /* Pogrubienie tekstu */
+        background-color: #FFE4C4; /* Kolor tła */
+        position: relative; /* Ustalona pozycja */
+    }
+
 </style>
 
 <h3>Users</h3>
 
-@if (users == null)
+<input type="text" placeholder="Search by username, name, or surname" @bind="searchTerm" @bind:event="oninput" class="search-input" />
+
+@if (filteredUsers == null || !filteredUsers.Any())
 {
-    <p><em>Loading...</em></p>
+    <p><em>No users found...</em></p>
 }
 else
 {
     <div class="user-container">
-        @foreach (var u in users)
+        @foreach (var u in FilteredUsers)
         {
             @if (u.UserName != loggedInUserName)
             {
-                <div class="user-box">
-                    @if (!string.IsNullOrEmpty(u.UserPhoto))
-                    {
-                        <img src="@u.UserPhoto" alt="User Photo" />
-                    }
-                    else
-                    {
-                        <img src="path/to/default-image.jpg" alt="Default User Photo" />
-                    }
-                    <h4>@u.WebUserName</h4>
-                    <p><strong>Name:</strong> @u.Name</p>
-                    <p><strong>Second Name:</strong> @u.SecondName</p>
-                    <p><strong>Address:</strong> @u.Adress</p>
-                    <p><strong>Preferred Localization:</strong> @u.PrefferedLocalization</p>
-                    <p><strong>Age:</strong> @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</p>
+                // Sprawdzenie, czy użytkownik jest już przyjacielem lub oczekuje na zaproszenie
+                var isFriend = friends.Contains(u.Id);
+                var isPendingInvitation = pendingInvitations.Contains(u.Id);
+                var isInvitationSent = invitationSent.Contains(u.Id);
 
-                    <!-- Display status or invite/delete buttons -->
-                    <div class="button-container">
-                        @if (friends.Contains(u.Id))
-                        {
-                            <span>Friend</span>
-                        }
-                        else if (pendingInvitations.Contains(u.Id))
-                        {
-                            <span>Invitation is waiting</span>
-                        }
-                        else if (invitationSent.Contains(u.Id))
-                        {
-                            <button class="invite-btn" disabled>Invitation was sent</button>
-                            <button class="delete-btn" @onclick="() => DeleteInvitation(u.Id)">Delete Invitation</button>
-                        }
-                        else
-                        {
-                            <button class="invite-btn" @onclick="() => SendInvitation(u.Id)">Send Invitation</button>
-                        }
+                <div class="user-box">
+                    <!-- Zdjęcie po lewej stronie -->
+                    <img src="@(!string.IsNullOrEmpty(u.UserPhoto) ? u.UserPhoto : "path/to/default-image.jpg")" alt="User Photo" class="img-thumbnail" />
+
+                    <!-- Dane użytkownika po prawej stronie -->
+                    <div class="card-content">
+                        <a href="/users/details/@u.Id" style="text-decoration: none; color: inherit;">
+                            <div class="card-title">@HighlightText(u.WebUserName, searchTerm)</div>
+                        </a>
+                        <!-- Wyświetlamy imię i nazwisko obok siebie -->
+                        <div class="card-name-surname">
+                            <span class="card-name">@HighlightText(u.Name, searchTerm)</span>
+                            <span class="card-surname">@HighlightText(u.SecondName, searchTerm)</span>
+                        </div>
+                        <div class="card-text">Age: @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</div>
+                        <div class="card-text">Address: @u.Adress</div>
+                        <div class="card-text">Preferred Localization: @u.PrefferedLocalization</div> <!-- Nowy element -->
+                        <!-- Button actions (invite/delete) based on user status -->
+                        <div class="button-container">
+                            @if (isFriend)
+                            {
+                                <span class="friend-status">Friend</span>
+                            }
+                            else if (isPendingInvitation)
+                            {
+                                <span class="invitation-status">Invitation is waiting</span>
+                            }
+                            else if (isInvitationSent)
+                            {
+                                <button class="invite-btn" disabled>Invitation was sent</button>
+                                <button class="delete-btn" @onclick="() => DeleteInvitation(u.Id)">Delete Invitation</button>
+                            }
+                            else
+                            {
+                                <button class="invite-btn" @onclick="() => SendInvitation(u.Id)">Send Invitation</button>
+                            }
+                        </div>
                     </div>
                 </div>
             }
@@ -129,35 +181,71 @@ else
 
 @code {
     List<UserModel> users;
-    List<string> invitationSent = new List<string>(); // List of users you have sent invitations to
-    List<string> pendingInvitations = new List<string>(); // List of users who sent you invitations
-    List<string> friends = new List<string>(); // List of users who are already friends
+    List<UserModel> filteredUsers;
+    List<string> invitationSent = new List<string>();
+    List<string> pendingInvitations = new List<string>();
+    List<string> friends = new List<string>();
     string loggedInUserName;
+    string searchTerm = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-
-        // Get the logged-in user's name
         loggedInUserName = user.Identity?.Name;
 
-        // Load all users
         string sql = "select * from aspnetusers";
         users = await _data.LoadData<UserModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
 
-        // Load information about friends, invitations sent, and invitations received
         await LoadFriends();
         await LoadInvitationsSent();
         await LoadPendingInvitations();
+
+        filteredUsers = new List<UserModel>(users);
     }
 
-    // Load the friends of the logged-in user
+    private IEnumerable<UserModel> FilteredUsers
+    {
+        get
+        {
+            var filteredUsers = users
+                .Where(u => u.WebUserName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                            u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                            u.SecondName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+            // Filtruj na podstawie innych kryteriów, jeśli są wybrane, np. lokalizacja, wiek itp.
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                filteredUsers = filteredUsers.Where(u =>
+                    u.WebUserName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    u.SecondName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+            }
+            return filteredUsers.ToList();
+        }
+    }
+
+
+
+    private string HighlightText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm) || string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        string highlightedText = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            System.Text.RegularExpressions.Regex.Escape(searchTerm),
+            match => $"<span class=\"highlight\">{match.Value}</span>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return highlightedText;
+    }
+
     private async Task LoadFriends()
     {
         var loggedInUserId = await GetLoggedInUserId();
-
-        // SQL to fetch friends of the logged-in user
         string sql = @"
             select Id from aspnetusers
             where Id in (
@@ -165,86 +253,86 @@ else
                 union
                 select IdUser2 from Friends where IdUser1 = @UserId
             )";
-
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserId = loggedInUserId }, _config.GetConnectionString("default"));
         friends = result.Select(r => (string)r.Id).ToList();
     }
 
-    // Load the invitations sent by the logged-in user
     private async Task LoadInvitationsSent()
     {
         var invitedBy = await GetLoggedInUserId();
-
-        // SQL to fetch the invitations sent by the logged-in user
         string sql = "select IdUser from Friend_Invitations where InvitedBy = @InvitedBy";
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { InvitedBy = invitedBy }, _config.GetConnectionString("default"));
-
         invitationSent = result.Select(r => (string)r.IdUser).ToList();
     }
 
-    // Load the invitations received by the logged-in user (pending invitations)
     private async Task LoadPendingInvitations()
     {
         var loggedInUserId = await GetLoggedInUserId();
-
-        // SQL to fetch the invitations received by the logged-in user
         string sql = "select InvitedBy from Friend_Invitations where IdUser = @LoggedInUserId";
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { LoggedInUserId = loggedInUserId }, _config.GetConnectionString("default"));
-
         pendingInvitations = result.Select(r => (string)r.InvitedBy).ToList();
     }
 
-    // Send an invitation to another user
     private async Task SendInvitation(string userId)
     {
         var invitedBy = await GetLoggedInUserId();
-
-        // Check if the invitation has not been sent already
         if (!invitationSent.Contains(userId))
         {
-            // SQL to insert a new invitation
             string sql = @"
                 INSERT INTO Friend_Invitations (IdUser, InvitedBy, SendingDate)
                 VALUES (@IdUser, @InvitedBy, @SendingDate);";
-
             await _data.SaveData(sql, new
             {
                 IdUser = userId,
                 InvitedBy = invitedBy,
                 SendingDate = DateTime.Now
             }, _config.GetConnectionString("default"));
-
-            // Add the user to the list of users to whom invitations were sent
             invitationSent.Add(userId);
         }
     }
 
-    // Delete an invitation that has been sent
     private async Task DeleteInvitation(string userId)
     {
         var invitedBy = await GetLoggedInUserId();
-
-        // SQL to delete the invitation
         string sql = "DELETE FROM Friend_Invitations WHERE IdUser = @IdUser AND InvitedBy = @InvitedBy";
-
-        await _data.SaveData(sql, new
-        {
-            IdUser = userId,
-            InvitedBy = invitedBy
-        }, _config.GetConnectionString("default"));
-
-        // Remove the user from the list of users to whom invitations were sent
+        await _data.SaveData(sql, new { IdUser = userId, InvitedBy = invitedBy }, _config.GetConnectionString("default"));
         invitationSent.Remove(userId);
     }
 
-    // Get the logged-in user's Id
     private async Task<string> GetLoggedInUserId()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         string sql = "select Id from aspnetusers where UserName = @UserName";
-
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity?.Name }, _config.GetConnectionString("default"));
         return result?.FirstOrDefault()?.Id;
+    }
+
+    // Funkcja podświetlania tekstu w wynikach wyszukiwania
+    private MarkupString HighlightText(string text, string searchQuery)
+    {
+        if (string.IsNullOrEmpty(searchQuery) || string.IsNullOrEmpty(text))
+        {
+            return (MarkupString)text;
+        }
+
+        var highlightedText = new StringBuilder();
+        int queryIndex = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (queryIndex < searchQuery.Length &&
+                char.ToLower(text[i]) == char.ToLower(searchQuery[queryIndex]))
+            {
+                // Jeśli litera pasuje do wyszukiwanego hasła, pogrub ją i podświetl
+                highlightedText.Append($"<span class='highlight'>{text[i]}</span>");
+                queryIndex++; // Przejdź do kolejnej litery wyszukiwanego hasła
+            }
+            else
+            {
+                highlightedText.Append(text[i]);
+            }
+        }
+
+        return (MarkupString)highlightedText.ToString();
     }
 }
