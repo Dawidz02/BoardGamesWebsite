@@ -9,13 +9,9 @@
 
   <ItemGroup>
     <Compile Remove="Components\Pages\NewFolder1\**" />
-    <Compile Remove="Components\Pages\NewFolder\**" />
     <Content Remove="Components\Pages\NewFolder1\**" />
-    <Content Remove="Components\Pages\NewFolder\**" />
     <EmbeddedResource Remove="Components\Pages\NewFolder1\**" />
-    <EmbeddedResource Remove="Components\Pages\NewFolder\**" />
     <None Remove="Components\Pages\NewFolder1\**" />
-    <None Remove="Components\Pages\NewFolder\**" />
   </ItemGroup>
 
   <ItemGroup>

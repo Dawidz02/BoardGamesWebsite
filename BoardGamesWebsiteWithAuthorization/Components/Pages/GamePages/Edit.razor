@@ -18,36 +18,36 @@ else
 {
     <EditForm Model="game" OnValidSubmit="UpdateGame">
         <DataAnnotationsValidator />
-        <ValidationSummary />  <!-- Displays a summary of validation errors -->
+        <ValidationSummary />
 
         <div class="mb-3">
             <label for="gameName" class="form-label">Game Name</label>
             <InputText id="gameName" class="form-control" @bind-Value="game.GameName" />
-            <ValidationMessage For="@(() => game.GameName)" />  <!-- Display validation message -->
+            <ValidationMessage For="@(() => game.GameName)" />
         </div>
 
         <div class="mb-3">
             <label for="author" class="form-label">Author</label>
             <InputText id="author" class="form-control" @bind-Value="game.Author" />
-            <ValidationMessage For="@(() => game.Author)" />  <!-- Display validation message -->
+            <ValidationMessage For="@(() => game.Author)" />
         </div>
 
         <div class="mb-3">
             <label for="publisher" class="form-label">Publisher</label>
             <InputText id="publisher" class="form-control" @bind-Value="game.Publisher" />
-            <ValidationMessage For="@(() => game.Publisher)" />  <!-- Display validation message -->
+            <ValidationMessage For="@(() => game.Publisher)" />
         </div>
 
         <div class="mb-3">
             <label for="playTime" class="form-label">Play Time (min)</label>
             <InputNumber id="playTime" class="form-control" @bind-Value="game.PlayTime" />
-            <ValidationMessage For="@(() => game.PlayTime)" />  <!-- Display validation message -->
+            <ValidationMessage For="@(() => game.PlayTime)" />
         </div>
 
         <div class="mb-3">
             <label for="description" class="form-label">Description</label>
             <InputTextArea id="description" class="form-control" @bind-Value="game.GameDescription" />
-            <ValidationMessage For="@(() => game.GameDescription)" />  <!-- Display validation message -->
+            <ValidationMessage For="@(() => game.GameDescription)" />
         </div>
 
         <h4>Category</h4>
@@ -63,7 +63,6 @@ else
                 }
             </InputSelect>
 
-            <!-- Wyświetl komunikat o błędzie, jeśli kategoria nie została wybrana -->
             @if (!string.IsNullOrEmpty(categoryValidationMessage))
             {
                 <div class="text-danger">@categoryValidationMessage</div>
@@ -81,11 +80,8 @@ else
         {
             <div class="mb-3">
                 <label for="mainGame" class="form-label">Select Main Game</label>
-
-                <!-- Input field for typing the main game name -->
                 <InputText id="mainGame" class="form-control" @bind-Value="mainGameSearchTerm" @oninput="FilterMainGames" placeholder="Type to search..." />
 
-                <!-- Display matching games in a suggestion box -->
                 @if (filteredGames != null && filteredGames.Any())
                 {
                     <ul class="list-group">
@@ -145,27 +141,26 @@ else
 
         <button type="submit" class="btn btn-primary">Save Changes</button>
         <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-        <div style="height: 30px;"></div> <!-- Możesz dostosować wysokość w razie potrzeby -->
+        <div style="height: 30px;"></div>
     </EditForm>
 }
 
 @code {
     [Parameter] public int gameId { get; set; }
     private GameModel game = new GameModel();
-    private List<GameImageModel> newImages = new List<GameImageModel>(); // List for new images
-    private List<CategoryModel> allCategories = new List<CategoryModel>();  // All categories
-    private int selectedCategoryId;  // Selected category (single selection)
-    private string categoryValidationMessage = "";  // Zmienna dla komunikatu o błędzie
+    private List<GameImageModel> newImages = new List<GameImageModel>();
+    private List<CategoryModel> allCategories = new List<CategoryModel>();
+    private int selectedCategoryId;
+    private string categoryValidationMessage = "";
 
-    private bool isDlc = false;  // Boolean to track if the game is a DLC
-    private List<GameModel> allGames = new List<GameModel>();  // All games (for DLC selection)
-    private int selectedMainGameId;  // Selected main game if this is a DLC
-    private string mainGameSearchTerm = ""; // The user's input for main game search
+    private bool isDlc = false;
+    private List<GameModel> allGames = new List<GameModel>();
+    private int selectedMainGameId;
+    private string mainGameSearchTerm = "";
     private List<GameModel> filteredGames = new List<GameModel>();
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Pobierz dane gry
         string gameSql = "SELECT * FROM games WHERE Id = @Id";
         var gameResults = await _data.LoadData<GameModel, dynamic>(gameSql, new { Id = gameId }, _config.GetConnectionString("default"));
 
@@ -173,25 +168,20 @@ else
         {
             game = gameResults.First();
 
-            // 2. Pobierz powiązane obrazy dla gry
             string imageSql = "SELECT * FROM Game_Image WHERE IdGame = @IdGame";
             var imageResults = await _data.LoadData<GameImageModel, dynamic>(imageSql, new { IdGame = gameId }, _config.GetConnectionString("default"));
 
             game.GameImages = imageResults ?? new List<GameImageModel>();
 
-            // 3. Pobierz wszystkie dostępne kategorie
             string categorySql = "SELECT * FROM Categories";
             allCategories = await _data.LoadData<CategoryModel, dynamic>(categorySql, new { }, _config.GetConnectionString("default"));
 
-            // 4. Pobierz przypisaną kategorię do gry
             string gameCategorySql = "SELECT IdCategory FROM Game_Category WHERE IdGame = @IdGame";
             selectedCategoryId = (await _data.LoadData<int, dynamic>(gameCategorySql, new { IdGame = gameId }, _config.GetConnectionString("default"))).FirstOrDefault();
 
-            // 5. Pobierz wszystkie gry dla DLC
             string allGamesSql = "SELECT Id, GameName FROM games";
             allGames = await _data.LoadData<GameModel, dynamic>(allGamesSql, new { }, _config.GetConnectionString("default"));
 
-            // 6. Sprawdź, czy gra jest DLC i wczytaj główną grę
             string dlcSql = "SELECT MainGameId FROM DLC WHERE DLCGameId = @DLCGameId";
             var dlcResult = await _data.LoadData<int, dynamic>(dlcSql, new { DLCGameId = gameId }, _config.GetConnectionString("default"));
             if (dlcResult.Count > 0)
@@ -216,33 +206,42 @@ else
 
         categoryValidationMessage = "";
 
-        // 1. Aktualizacja gry
         string gameSql = @"UPDATE games
                        SET GameName = @GameName, Author = @Author, Publisher = @Publisher, PlayTime = @PlayTime, GameDescription = @GameDescription
                        WHERE Id = @Id";
         await _data.SaveData(gameSql, game, _config.GetConnectionString("default"));
 
-        // 2. Zaktualizuj lub wstaw informacje o DLC
+        string gameCategorySql = "UPDATE Game_Category SET IdCategory = @IdCategory WHERE IdGame = @IdGame";
+        await _data.SaveData(gameCategorySql, new { IdCategory = selectedCategoryId, IdGame = game.Id }, _config.GetConnectionString("default"));
+
+        string resetMainImageSql = @"UPDATE Game_Image SET IsMain = 0 WHERE IdGame = @IdGame";
+        await _data.SaveData(resetMainImageSql, new { IdGame = game.Id }, _config.GetConnectionString("default"));
+
+        foreach (var existingImage in game.GameImages)
+        {
+            string updateImageSql = @"UPDATE Game_Image SET ImageUrl = @ImageUrl, IsMain = @IsMain WHERE Id = @Id";
+            await _data.SaveData(updateImageSql, existingImage, _config.GetConnectionString("default"));
+        }
+
+        foreach (var newImage in newImages)
+        {
+            string insertImageSql = @"INSERT INTO Game_Image (IdGame, ImageUrl, IsMain) VALUES (@IdGame, @ImageUrl, @IsMain)";
+            await _data.SaveData(insertImageSql, new { IdGame = game.Id, ImageUrl = newImage.ImageUrl, IsMain = newImage.IsMain }, _config.GetConnectionString("default"));
+        }
+
         if (isDlc)
         {
-            if (selectedMainGameId == 0)
+            if (selectedMainGameId > 0)
             {
-                categoryValidationMessage = "Please select a main game for this DLC.";
-                return;
-            }
-
-            string checkDlcSql = "SELECT COUNT(*) FROM DLC WHERE DLCGameId = @DLCGameId";
-            int existingDlcCount = (await _data.LoadData<int, dynamic>(checkDlcSql, new { DLCGameId = game.Id }, _config.GetConnectionString("default"))).FirstOrDefault();
-
-            if (existingDlcCount > 0)
-            {
-                string updateDlcSql = @"UPDATE DLC SET MainGameId = @MainGameId WHERE DLCGameId = @DLCGameId";
-                await _data.SaveData(updateDlcSql, new { MainGameId = selectedMainGameId, DLCGameId = game.Id }, _config.GetConnectionString("default"));
-            }
-            else
-            {
-                string insertDlcSql = @"INSERT INTO DLC (MainGameId, DLCGameId) VALUES (@MainGameId, @DLCGameId)";
-                await _data.SaveData(insertDlcSql, new { MainGameId = selectedMainGameId, DLCGameId = game.Id }, _config.GetConnectionString("default"));
+                string dlcSql = @"IF EXISTS (SELECT 1 FROM DLC WHERE DLCGameId = @DLCGameId)
+                              BEGIN
+                                  UPDATE DLC SET MainGameId = @MainGameId WHERE DLCGameId = @DLCGameId
+                              END
+                              ELSE
+                              BEGIN
+                                  INSERT INTO DLC (MainGameId, DLCGameId) VALUES (@MainGameId, @DLCGameId)
+                              END";
+                await _data.SaveData(dlcSql, new { MainGameId = selectedMainGameId, DLCGameId = game.Id }, _config.GetConnectionString("default"));
             }
         }
         else
@@ -251,19 +250,22 @@ else
             await _data.SaveData(deleteDlcSql, new { DLCGameId = game.Id }, _config.GetConnectionString("default"));
         }
 
-        // 3. Obsługa obrazów i kategorii...
-
         Navigation.NavigateTo("/games");
     }
 
     private void AddNewImage()
     {
-        newImages.Add(new GameImageModel());
+        newImages.Add(new GameImageModel { IdGame = gameId });
     }
 
-    private void RemoveExistingImage(GameImageModel image)
+    private async Task RemoveExistingImage(GameImageModel image)
     {
+        // Remove the image from the in-memory list
         game.GameImages.Remove(image);
+
+        // SQL query to delete the image from the database
+        string deleteImageSql = "DELETE FROM Game_Image WHERE Id = @Id";
+        await _data.SaveData(deleteImageSql, new { Id = image.Id }, _config.GetConnectionString("default"));
     }
 
     private void RemoveNewImage(GameImageModel newImage)
@@ -271,75 +273,52 @@ else
         newImages.Remove(newImage);
     }
 
-    private void OnMainImageChanged(GameImageModel image)
+    private void OnMainImageChanged(GameImageModel selectedImage)
     {
-        // Resetowanie "IsMain" dla wszystkich istniejących zdjęć
+        // Ustawienie IsMain = false dla wszystkich obrazów
         foreach (var img in game.GameImages)
         {
             img.IsMain = false;
         }
-
-        // Resetowanie "IsMain" dla nowych zdjęć
         foreach (var newImg in newImages)
         {
             newImg.IsMain = false;
         }
 
-        // Ustawienie wybranego zdjęcia jako głównego
-        image.IsMain = true;
+        // Ustawienie IsMain = true tylko dla wybranego zdjęcia
+        selectedImage.IsMain = true;
     }
 
-    private void OnNewImageChanged(GameImageModel newImage)
+    private void OnNewImageChanged(GameImageModel selectedNewImage)
     {
-        // Resetowanie "IsMain" dla wszystkich nowych zdjęć
         foreach (var img in newImages)
         {
             img.IsMain = false;
         }
-
-        // Resetowanie "IsMain" dla istniejących zdjęć
         foreach (var existingImg in game.GameImages)
         {
             existingImg.IsMain = false;
         }
 
-        // Ustawienie wybranego zdjęcia jako głównego
-        newImage.IsMain = true;
-    }
-
-    // Method to filter games based on the input
-    private void FilterMainGames(ChangeEventArgs e)
-    {
-        // Get the current search term
-        mainGameSearchTerm = e.Value.ToString();
-
-        // Filter the list of games based on the search term
-        if (!string.IsNullOrEmpty(mainGameSearchTerm))
-        {
-            filteredGames = allGames
-                .Where(g => g.GameName.Contains(mainGameSearchTerm, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
-        else
-        {
-            filteredGames = new List<GameModel>(); // If no search term, clear suggestions
-        }
-    }
-
-    // Method to select a main game from the suggestions
-    private void SelectMainGame(GameModel selectedGame)
-    {
-        // Set the selected game ID and update the input field with the game name
-        selectedMainGameId = selectedGame.Id;
-        mainGameSearchTerm = selectedGame.GameName;
-
-        // Clear the suggestions after selection
-        filteredGames.Clear();
+        selectedNewImage.IsMain = true;
     }
 
 
     private void Cancel()
     {
         Navigation.NavigateTo("/games");
+    }
+
+    private void FilterMainGames(ChangeEventArgs e)
+    {
+        mainGameSearchTerm = e.Value.ToString();
+        filteredGames = allGames.Where(g => g.GameName.Contains(mainGameSearchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void SelectMainGame(GameModel game)
+    {
+        selectedMainGameId = game.Id;
+        mainGameSearchTerm = game.GameName;
+        filteredGames.Clear();
     }
 }
