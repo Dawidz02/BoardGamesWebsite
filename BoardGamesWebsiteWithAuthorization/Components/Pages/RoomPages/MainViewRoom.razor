@@ -1,5 +1,143 @@
-﻿<h3>MainViewRoom</h3>
+﻿@page "/rooms"
+@rendermode InteractiveServer
+
+@using BoardGamesWebsiteWithAuthorization.Models
+@using DataLibrary
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject NavigationManager Navigation
+
+<style>
+    /* Container for the Room Cards */
+    .room-cards-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    /* General Card Styling */
+    .room-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .room-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Card Image Styling */
+        .room-card img.card-img-top {
+            width: 100%; /* Dopasowanie szerokości do kontenera */
+            max-height: 200px; /* Ustal maksymalną wysokość obrazka */
+            object-fit: contain; /* Dopasowanie obrazka bez przycinania */
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: white; /* Ensure the background behind images is white */
+        }
+
+        /* Card Title */
+        .room-card .card-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Card Text */
+        .room-card .card-text {
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        /* Button Styling */
+        .room-card .btn-primary {
+            background-color: #007bff;
+            border: none;
+            transition: background-color 0.2s ease;
+        }
+
+            .room-card .btn-primary:hover {
+                background-color: #0056b3;
+            }
+
+</style>
+
+<h3>Rooms List</h3>
+
+<!-- Button to go back to the games page -->
+<a href="/games" class="btn btn-secondary mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Games
+</a>
+
+<!-- Rooms Grid Layout -->
+<div class="room-cards-container">
+    @foreach (var room in rooms)
+    {
+        <div class="room-card card">
+            <img class="card-img-top" src="@room.MainGameImageUrl" alt="Main Game Image" />
+
+            <div class="card-body">
+                <h5 class="card-title">@room.RoomName</h5>
+                <p class="card-text"><strong>Game:</strong> @room.GameName</p>
+                <p class="card-text"><strong>Host:</strong> @room.HostName</p>
+                <p class="card-text"><strong>Location:</strong> @room.Localization</p>
+                <p class="card-text"><strong>Skill Level:</strong> @room.SkillLevelRequired</p>
+                <p class="card-text"><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
+                <p class="card-text"><strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")</p>
+
+                @if (!string.IsNullOrEmpty(room.RoomDescription))
+                {
+                    <p class="card-text"><strong>Description:</strong> @room.RoomDescription</p>
+                }
+
+                <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
+            </div>
+        </div>
+    }
+</div>
+
 
 @code {
+    private List<RoomModel> rooms = new List<RoomModel>();
 
+    protected override async Task OnInitializedAsync()
+    {
+        // Load rooms from the database
+        await LoadRooms();
+    }
+
+    private async Task LoadRooms()
+    {
+        string sql = @"
+            SELECT
+                r.Id AS RoomId,
+                r.RoomName,
+                g.GameName,
+                u.WebUserName AS HostName,
+                r.Availability,
+                r.Localization,
+                r.CreatingDate,
+                r.RoomDescription,
+                r.SkillLevelRequired,
+                r.WhoCanJoin,
+                gi.ImageUrl AS MainGameImageUrl
+            FROM
+                Rooms r
+            JOIN
+                Games g ON r.IdGame = g.Id
+            JOIN
+                AspNetUsers u ON r.IdHost = u.Id
+            LEFT JOIN
+                Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1;
+        ";
+
+        rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+    }
+
+    private void NavigateToRoom(int roomId)
+    {
+        Navigation.NavigateTo($"/rooms/{roomId}");
+    }
 }
