@@ -21,6 +21,8 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public string MainGameImageUrl { get; set; } // Main image URL for the game
         public bool IsUserInRoom { get; set; }
         public bool IsUserRoom { get; set; }
+        public bool IsAnyoneSelected { get; set; }  // Tracks "Anyone"
+        public bool IsInviteOnlySelected { get; set; }  // Tracks "Invite Only"
         public ICollection<RoomParticipantModel> RoomParticipants { get; set; }
         public ICollection<RoomInvitationModel> RoomInvitations { get; set; }
     }

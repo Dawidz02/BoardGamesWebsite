@@ -51,12 +51,13 @@
         <InputCheckbox id="availability" @bind-Value="newRoom.Availability" />
     </div>
 
+    <!-- Radio buttons for WhoCanJoin -->
     <div class="form-group">
-        <label for="whoCanJoin">Who Can Join</label>
-        <select class="form-control" @bind="newRoom.WhoCanJoin">
-            <option value="true">Anyone</option>
-            <option value="false">Invite Only</option>
-        </select>
+        <label>Who Can Join</label><br />
+        <InputRadioGroup @bind-Value="newRoom.WhoCanJoin">
+            <InputRadio id="anyoneRadio" Value="true" /> Anyone
+            <InputRadio id="inviteOnlyRadio" Value="false" /> Invite Only
+        </InputRadioGroup>
     </div>
 
     <button type="submit" class="btn btn-primary">Create Room</button>
