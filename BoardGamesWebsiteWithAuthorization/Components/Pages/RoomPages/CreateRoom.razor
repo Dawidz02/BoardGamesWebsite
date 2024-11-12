@@ -1,0 +1,133 @@
+﻿@page "/create-room"
+@rendermode InteractiveServer
+
+@using BoardGamesWebsiteWithAuthorization.Models
+@using DataLibrary
+@using System.Security.Claims
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>Create a New Room</h3>
+
+<EditForm Model="@newRoom" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="roomName">Room Name</label>
+        <InputText id="roomName" class="form-control" @bind-Value="newRoom.RoomName" />
+    </div>
+
+    <div class="form-group">
+        <label for="gameName">Game</label>
+        <select class="form-control" @bind="newRoom.IdGame">
+            <option value="">Select a Game</option>
+            @foreach (var game in games)
+            {
+                <option value="@game.Id">@game.GameName</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="localization">Localization</label>
+        <InputText id="localization" class="form-control" @bind-Value="newRoom.Localization" />
+    </div>
+
+    <div class="form-group">
+        <label for="roomDescription">Room Description</label>
+        <InputTextArea id="roomDescription" class="form-control" @bind-Value="newRoom.RoomDescription" />
+    </div>
+
+    <div class="form-group">
+        <label for="skillLevel">Skill Level Required</label>
+        <InputNumber id="skillLevel" class="form-control" @bind-Value="newRoom.SkillLevelRequired" />
+    </div>
+
+    <div class="form-group">
+        <label for="availability">Availability</label>
+        <InputCheckbox id="availability" @bind-Value="newRoom.Availability" />
+    </div>
+
+    <div class="form-group">
+        <label for="whoCanJoin">Who Can Join</label>
+        <select class="form-control" @bind="newRoom.WhoCanJoin">
+            <option value="true">Anyone</option>
+            <option value="false">Invite Only</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create Room</button>
+</EditForm>
+
+@code {
+    private RoomModel newRoom = new RoomModel();
+    private string userId;
+    private List<GameModel> games = new List<GameModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get the authentication state and logged-in user ID
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            Console.WriteLine("User ID is not found!");
+        }
+
+        // Load the available games from the database
+        await LoadGames();
+    }
+
+    private async Task LoadGames()
+    {
+        // SQL query to fetch all games
+        string sql = "SELECT Id, GameName FROM Games";
+
+        games = await _data.LoadData<GameModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrEmpty(newRoom.RoomName) || newRoom.IdGame == 0 || string.IsNullOrEmpty(newRoom.Localization))
+        {
+            Console.WriteLine("Room Name, Game, and Localization are required.");
+            return;
+        }
+
+        // Create the SQL query to insert the new room
+        var room = new
+        {
+            RoomName = newRoom.RoomName,
+            IdGame = newRoom.IdGame,
+            IdHost = userId,  // The host is the logged-in user
+            Availability = newRoom.Availability,
+            Localization = newRoom.Localization,
+            RoomDescription = newRoom.RoomDescription,
+            SkillLevelRequired = newRoom.SkillLevelRequired,
+            WhoCanJoin = newRoom.WhoCanJoin,
+            CreatingDate = DateTime.Now
+        };
+
+        string sql = @"
+        INSERT INTO Rooms (RoomName, IdGame, IdHost, Availability, Localization, RoomDescription, SkillLevelRequired, WhoCanJoin, CreatingDate)
+        VALUES (@RoomName, @IdGame, @IdHost, @Availability, @Localization, @RoomDescription, @SkillLevelRequired, @WhoCanJoin, @CreatingDate);
+        ";
+
+        try
+        {
+            await _data.SaveData(sql, room, _config.GetConnectionString("default"));
+            Console.WriteLine("Room created successfully.");
+
+            // Redirect to the rooms list after successful creation
+            Navigation.NavigateTo("/rooms");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating room: {ex.Message}");
+        }
+    }
+}
