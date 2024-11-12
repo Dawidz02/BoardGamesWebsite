@@ -3,9 +3,11 @@
 
 @using BoardGamesWebsiteWithAuthorization.Models
 @using DataLibrary
+@using System.Security.Claims
 @inject IDataAccess _data
 @inject IConfiguration _config
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <style>
     /* Container for the Room Cards */
@@ -30,12 +32,12 @@
 
         /* Card Image Styling */
         .room-card img.card-img-top {
-            width: 100%; /* Dopasowanie szerokości do kontenera */
-            max-height: 200px; /* Ustal maksymalną wysokość obrazka */
-            object-fit: contain; /* Dopasowanie obrazka bez przycinania */
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
             border-radius: 5px;
             margin-bottom: 10px;
-            background-color: white; /* Ensure the background behind images is white */
+            background-color: white;
         }
 
         /* Card Title */
@@ -98,18 +100,23 @@
     }
 </div>
 
-
 @code {
     private List<RoomModel> rooms = new List<RoomModel>();
+    private string userId;
 
     protected override async Task OnInitializedAsync()
     {
-        // Load rooms from the database
+        // Get the authentication state and logged-in user ID
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // Load rooms from the database, excluding rooms created by the logged-in user
         await LoadRooms();
     }
 
     private async Task LoadRooms()
     {
+        // SQL query excluding rooms where the logged-in user is the host
         string sql = @"
             SELECT
                 r.Id AS RoomId,
@@ -130,10 +137,13 @@
             JOIN
                 AspNetUsers u ON r.IdHost = u.Id
             LEFT JOIN
-                Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1;
+                Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
+            WHERE
+                r.IdHost != @UserId;
         ";
 
-        rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+        // Pass the logged-in user's ID as a parameter to the query
+        rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
     }
 
     private void NavigateToRoom(int roomId)
