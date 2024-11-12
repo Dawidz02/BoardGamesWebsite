@@ -104,7 +104,17 @@
                 }
 
                 <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
-                <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
+
+                @if (room.IsUserInRoom)
+                {
+                    <!-- Show 'Leave Room' if the user is in the room -->
+                    <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave Room</button>
+                }
+                else
+                {
+                    <!-- Show 'Join Room' if the user is not in the room -->
+                    <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
+                }
             </div>
         </div>
     }
@@ -121,12 +131,6 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        // Check if userId is null or empty (for debugging purposes)
-        if (string.IsNullOrEmpty(userId))
-        {
-            Console.WriteLine("User ID is not found!");
-        }
-
         // Load rooms from the database, excluding rooms created by the logged-in user
         await LoadRooms();
     }
@@ -136,45 +140,55 @@
         // SQL query excluding rooms where the logged-in user is the host
         string sql = @"
         SELECT
-    r.Id AS Id,  -- Ensure the alias is 'Id' for direct mapping
-    r.RoomName,
-    g.GameName,
-    u.WebUserName AS HostName,
-    r.Availability,
-    r.Localization,
-    r.CreatingDate,
-    r.RoomDescription,
-    r.SkillLevelRequired,
-    r.WhoCanJoin,
-    gi.ImageUrl AS MainGameImageUrl
-FROM
-    Rooms r
-JOIN
-    Games g ON r.IdGame = g.Id
-JOIN
-    AspNetUsers u ON r.IdHost = u.Id
-LEFT JOIN
-    Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
-WHERE
-    r.IdHost != @UserId;
-    ";
+            r.Id AS Id,
+            r.RoomName,
+            g.GameName,
+            u.WebUserName AS HostName,
+            r.Availability,
+            r.Localization,
+            r.CreatingDate,
+            r.RoomDescription,
+            r.SkillLevelRequired,
+            r.WhoCanJoin,
+            gi.ImageUrl AS MainGameImageUrl
+        FROM
+            Rooms r
+        JOIN
+            Games g ON r.IdGame = g.Id
+        JOIN
+            AspNetUsers u ON r.IdHost = u.Id
+        LEFT JOIN
+            Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
+        WHERE
+            r.IdHost != @UserId;
+        ";
 
+        // Load rooms data
         rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
 
-        // Log the results to see if Id is populated correctly
+        // Now check if the user is in any of these rooms
         foreach (var room in rooms)
         {
-            Console.WriteLine($"Room Id: {room.Id}, Room Name: {room.RoomName}");
+            var isUserInRoom = await IsUserInRoom(room.Id);
+            room.IsUserInRoom = isUserInRoom; // Set the IsUserInRoom property
         }
-
     }
 
+    private async Task<bool> IsUserInRoom(int roomId)
+    {
+        // Check if the user is already a participant in this room
+        string sql = @"
+        SELECT COUNT(1)
+        FROM Room_Participants
+        WHERE IdRoom = @RoomId AND IdUser = @UserId;
+        ";
+
+        var result = await _data.LoadData<int, dynamic>(sql, new { RoomId = roomId, UserId = userId }, _config.GetConnectionString("default"));
+        return result.FirstOrDefault() > 0; // If count > 0, user is in the room
+    }
 
     private async Task JoinRoom(int roomId)
     {
-        // Log roomId and userId before insertion
-        Console.WriteLine($"Joining room with RoomId: {roomId}, UserId: {userId}");
-
         if (roomId <= 0)
         {
             Console.WriteLine("Invalid RoomId, cannot join room.");
@@ -192,7 +206,7 @@ WHERE
         string sql = @"
         INSERT INTO Room_Participants (IdRoom, IdUser, JoiningDate)
         VALUES (@IdRoom, @IdUser, @JoiningDate);
-    ";
+        ";
 
         try
         {
@@ -206,6 +220,37 @@ WHERE
         }
     }
 
+    private async Task LeaveRoom(int roomId)
+    {
+        if (roomId <= 0)
+        {
+            Console.WriteLine("Invalid RoomId, cannot leave room.");
+            return;
+        }
+
+        // Remove the user from the Room_Participants table
+        var participant = new
+        {
+            IdRoom = roomId,
+            IdUser = userId
+        };
+
+        string sql = @"
+        DELETE FROM Room_Participants
+        WHERE IdRoom = @IdRoom AND IdUser = @IdUser;
+        ";
+
+        try
+        {
+            await _data.SaveData(sql, participant, _config.GetConnectionString("default"));
+            await LoadRooms();  // Reload the room list after leaving
+            Console.WriteLine("Successfully left the room.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error leaving the room: {ex.Message}");
+        }
+    }
 
     private void NavigateToRoom(int roomId)
     {
