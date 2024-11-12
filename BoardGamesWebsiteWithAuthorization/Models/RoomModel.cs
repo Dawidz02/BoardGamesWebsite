@@ -20,6 +20,7 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public bool WhoCanJoin { get; set; }
         public string MainGameImageUrl { get; set; } // Main image URL for the game
         public bool IsUserInRoom { get; set; }
+        public bool IsUserRoom { get; set; }
         public ICollection<RoomParticipantModel> RoomParticipants { get; set; }
         public ICollection<RoomInvitationModel> RoomInvitations { get; set; }
     }

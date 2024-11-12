@@ -73,6 +73,25 @@
             .room-card .btn-join:hover {
                 background-color: #218838;
             }
+
+        .room-card .btn-delete {
+            background-color: #dc3545;
+            border: none;
+            transition: background-color 0.2s ease;
+        }
+
+            .room-card .btn-delete:hover {
+                background-color: #c82333;
+            }
+
+    /* Custom label for rooms created by the user */
+    .owned-room-label {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #007bff;
+        margin-top: 10px;
+        text-align: center;
+    }
 </style>
 
 <h3>Rooms List</h3>
@@ -103,22 +122,32 @@
                     <p class="card-text"><strong>Description:</strong> @room.RoomDescription</p>
                 }
 
-                <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
-
-                @if (room.IsUserInRoom)
+                @if (room.IsUserRoom)
                 {
-                    <!-- Show 'Leave Room' if the user is in the room -->
-                    <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave Room</button>
+                    <div class="owned-room-label">This room belongs to you</div>
+
+                    <!-- Show 'Delete' button for the owner -->
+                    <button class="btn btn-delete" @onclick="() => DeleteRoom(room.Id)">Delete Room</button>
                 }
                 else
                 {
-                    <!-- Show 'Join Room' if the user is not in the room -->
-                    <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
+                    <!-- If not the owner, show Join/Leave buttons -->
+                    <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
+
+                    @if (room.IsUserInRoom)
+                    {
+                        <!-- Show 'Leave Room' if the user is in the room -->
+                        <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave Room</button>
+                    }
+                    else
+                    {
+                        <!-- Show 'Join Room' if the user is not in the room -->
+                        <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
+                    }
                 }
             </div>
         </div>
     }
-
 </div>
 
 @code {
@@ -131,13 +160,13 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        // Load rooms from the database, excluding rooms created by the logged-in user
+        // Load rooms from the database, including those created by the logged-in user
         await LoadRooms();
     }
 
     private async Task LoadRooms()
     {
-        // SQL query excluding rooms where the logged-in user is the host
+        // SQL query to load all rooms, including those created by the logged-in user
         string sql = @"
         SELECT
             r.Id AS Id,
@@ -150,7 +179,8 @@
             r.RoomDescription,
             r.SkillLevelRequired,
             r.WhoCanJoin,
-            gi.ImageUrl AS MainGameImageUrl
+            gi.ImageUrl AS MainGameImageUrl,
+            r.IdHost
         FROM
             Rooms r
         JOIN
@@ -159,19 +189,21 @@
             AspNetUsers u ON r.IdHost = u.Id
         LEFT JOIN
             Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
-        WHERE
-            r.IdHost != @UserId;
         ";
 
-        // Load rooms data
-        rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
+        // Load all rooms data
+        rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
 
-        // Now check if the user is in any of these rooms
+        // Mark rooms that belong to the current user
         foreach (var room in rooms)
         {
+            room.IsUserRoom = room.IdHost == userId;
             var isUserInRoom = await IsUserInRoom(room.Id);
             room.IsUserInRoom = isUserInRoom; // Set the IsUserInRoom property
         }
+
+        // Sort rooms to have the user's rooms at the top
+        rooms = rooms.OrderByDescending(r => r.IsUserRoom).ToList();
     }
 
     private async Task<bool> IsUserInRoom(int roomId)
@@ -249,6 +281,33 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error leaving the room: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteRoom(int roomId)
+    {
+        if (roomId <= 0)
+        {
+            Console.WriteLine("Invalid RoomId, cannot delete room.");
+            return;
+        }
+
+        // Delete the room from the database
+        var roomToDelete = new { IdRoom = roomId };
+
+        string sql = @"
+        DELETE FROM Rooms WHERE Id = @IdRoom;
+        ";
+
+        try
+        {
+            await _data.SaveData(sql, roomToDelete, _config.GetConnectionString("default"));
+            await LoadRooms();  // Reload the room list after deletion
+            Console.WriteLine("Room deleted successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting the room: {ex.Message}");
         }
     }
 
