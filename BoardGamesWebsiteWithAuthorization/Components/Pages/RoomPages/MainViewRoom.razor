@@ -64,6 +64,15 @@
                 background-color: #0056b3;
             }
 
+        .room-card .btn-join {
+            background-color: #28a745;
+            border: none;
+            transition: background-color 0.2s ease;
+        }
+
+            .room-card .btn-join:hover {
+                background-color: #218838;
+            }
 </style>
 
 <h3>Rooms List</h3>
@@ -95,9 +104,11 @@
                 }
 
                 <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
+                <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
             </div>
         </div>
     }
+
 </div>
 
 @code {
@@ -110,6 +121,12 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+        // Check if userId is null or empty (for debugging purposes)
+        if (string.IsNullOrEmpty(userId))
+        {
+            Console.WriteLine("User ID is not found!");
+        }
+
         // Load rooms from the database, excluding rooms created by the logged-in user
         await LoadRooms();
     }
@@ -118,33 +135,77 @@
     {
         // SQL query excluding rooms where the logged-in user is the host
         string sql = @"
-            SELECT
-                r.Id AS RoomId,
-                r.RoomName,
-                g.GameName,
-                u.WebUserName AS HostName,
-                r.Availability,
-                r.Localization,
-                r.CreatingDate,
-                r.RoomDescription,
-                r.SkillLevelRequired,
-                r.WhoCanJoin,
-                gi.ImageUrl AS MainGameImageUrl
-            FROM
-                Rooms r
-            JOIN
-                Games g ON r.IdGame = g.Id
-            JOIN
-                AspNetUsers u ON r.IdHost = u.Id
-            LEFT JOIN
-                Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
-            WHERE
-                r.IdHost != @UserId;
-        ";
+        SELECT
+    r.Id AS Id,  -- Ensure the alias is 'Id' for direct mapping
+    r.RoomName,
+    g.GameName,
+    u.WebUserName AS HostName,
+    r.Availability,
+    r.Localization,
+    r.CreatingDate,
+    r.RoomDescription,
+    r.SkillLevelRequired,
+    r.WhoCanJoin,
+    gi.ImageUrl AS MainGameImageUrl
+FROM
+    Rooms r
+JOIN
+    Games g ON r.IdGame = g.Id
+JOIN
+    AspNetUsers u ON r.IdHost = u.Id
+LEFT JOIN
+    Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
+WHERE
+    r.IdHost != @UserId;
+    ";
 
-        // Pass the logged-in user's ID as a parameter to the query
         rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
+
+        // Log the results to see if Id is populated correctly
+        foreach (var room in rooms)
+        {
+            Console.WriteLine($"Room Id: {room.Id}, Room Name: {room.RoomName}");
+        }
+
     }
+
+
+    private async Task JoinRoom(int roomId)
+    {
+        // Log roomId and userId before insertion
+        Console.WriteLine($"Joining room with RoomId: {roomId}, UserId: {userId}");
+
+        if (roomId <= 0)
+        {
+            Console.WriteLine("Invalid RoomId, cannot join room.");
+            return;
+        }
+
+        // Create a participant object for the Room_Participants table
+        var participant = new
+        {
+            IdRoom = roomId,
+            IdUser = userId,
+            JoiningDate = DateTime.Now
+        };
+
+        string sql = @"
+        INSERT INTO Room_Participants (IdRoom, IdUser, JoiningDate)
+        VALUES (@IdRoom, @IdUser, @JoiningDate);
+    ";
+
+        try
+        {
+            await _data.SaveData(sql, participant, _config.GetConnectionString("default"));
+            await LoadRooms();  // Reload the room list after joining
+            Console.WriteLine("Successfully joined the room.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error joining the room: {ex.Message}");
+        }
+    }
+
 
     private void NavigateToRoom(int roomId)
     {
