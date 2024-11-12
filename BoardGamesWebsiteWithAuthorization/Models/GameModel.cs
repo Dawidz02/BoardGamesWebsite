@@ -34,6 +34,7 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public int SkillLevel { get; set; } // Add this line
         public bool ReadyToPlay { get; set; }
         public bool IsOwnedByUser { get; set; }
+        public string MainImageUrl { get; set; }
     }
 
 }
