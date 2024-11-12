@@ -78,16 +78,21 @@
             Console.WriteLine("User ID is not found!");
         }
 
-        // Load the available games from the database
-        await LoadGames();
+        // Load the available games that the user owns
+        await LoadUserOwnedGames();
     }
 
-    private async Task LoadGames()
+    private async Task LoadUserOwnedGames()
     {
-        // SQL query to fetch all games
-        string sql = "SELECT Id, GameName FROM Games";
+        // SQL query to fetch games owned by the logged-in user from the User_Game table
+        string sql = @"
+        SELECT g.Id, g.GameName
+        FROM Games g
+        JOIN User_Game ug ON g.Id = ug.IdGame
+        WHERE ug.IdUser = @UserId;
+        ";
 
-        games = await _data.LoadData<GameModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+        games = await _data.LoadData<GameModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
     }
 
     private async Task HandleSubmit()
