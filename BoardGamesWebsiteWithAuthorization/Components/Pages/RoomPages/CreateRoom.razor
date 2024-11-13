@@ -51,7 +51,19 @@
         width: 200px; /* Stała szerokość */
         height: 200px; /* Stała wysokość */
         overflow: hidden; /* Zapewnia, że zawartość nie wychodzi poza rozmiar */
+        cursor: pointer; /* Kursor wskazuje na interaktywność */
     }
+
+    .game-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .selected-game {
+        border: 2px solid green; /* Green border for the selected game */
+        background-color: #e0ffe0; /* Light green background for better visibility */
+    }
+
 
         .game-card .game-name {
             font-size: 1.1rem;
@@ -65,7 +77,6 @@
             max-width: calc(20ch); /* Ustawia maksymalną szerokość na 15 znaków (ch oznacza szerokość znaku) */
         }
 
-
         .game-card img {
             width: 80%; /* Zapewnia, że szerokość obrazu wypełnia kontener */
             height: 80%; /* Zapewnia, że wysokość obrazu wypełnia kontener */
@@ -74,8 +85,6 @@
         }
 
 </style>
-
-
 
 <h3>Create a New Room</h3>
 
@@ -95,10 +104,12 @@
                 <label for="gameName">Game</label>
                 <select class="form-control" @bind="newRoom.IdGame">
                     <option value="">Select a Game</option>
-                    @foreach (var game in games)
-                    {
-                        <option value="@game.Id">@game.GameName</option>
-                    }
+                        @foreach (var game in games)
+                        {
+                        <option value="@game.Id" class="@(newRoom.IdGame == game.Id ? "selected-game" : "")">
+                                @game.GameName
+                        </option>
+                        }
                 </select>
             </div>
 
@@ -137,13 +148,13 @@
     <!-- Right Column: User's Games with MainImage -->
     <div class="games-section">
         <h4>Your Games</h4>
-        @foreach (var game in games)
-        {
-            <div class="game-card">
+            @foreach (var game in games)
+            {
+            <div class="game-card @(newRoom.IdGame == game.Id ? "selected-game" : "")" @onclick="() => SelectGame(game.Id)">
                 <div class="game-name">@game.GameName</div>
                 <img src="@game.MainImageUrl" alt="@game.GameName Main Image" />
             </div>
-        }
+            }
     </div>
 </div>
 
@@ -177,6 +188,12 @@
         ";
 
         games = await _data.LoadData<GameModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
+    }
+
+    private void SelectGame(int gameId)
+    {
+        // Aktualizacja wybranej gry w formularzu
+        newRoom.IdGame = gameId;
     }
 
     private async Task HandleSubmit()
