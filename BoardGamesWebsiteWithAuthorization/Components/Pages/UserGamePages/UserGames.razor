@@ -80,9 +80,8 @@
         background-color: white; /* Ensure the background behind images is white */
     }
 
-
-
     .game-card .card-title {
+        text-align: center;
         font-size: 18px;
         font-weight: bold;
     }
@@ -152,17 +151,33 @@
     }
 
     /* Add star styling */
-    .star {
-        font-size: 24px; /* Adjust the size of stars */
-        color: #ccc; /* Default star color (unfilled) */
-        transition: color 0.3s;
+    .skill-level-bar {
+        display: flex;
+        gap: 1px;
+        margin-top: 8px;
+        margin-bottom: 8px;
     }
 
-        .star.filled {
-            color: gold; /* Filled star color */
+    .skill-level-segment {
+        flex: 1;
+        text-align: center;
+        padding: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+        .skill-level-segment:hover {
+            background-color: #e0e0e0;
         }
 
-
+        .skill-level-segment.selected {
+            background-color: #28a745;
+            color: white;
+            font-weight: bold;
+        }
 </style>
 
 <h3>My Games</h3>
@@ -232,23 +247,21 @@ else
                     <div class="card-title">@HighlightText(g.GameName, searchQuery)</div>
 
                     <!-- Dropdown for Skill Level -->
-                    <div>
-                        @for (int i = 1; i <= 10; i++)
-                        {
-                            <span class="star @((i <= g.SkillLevel) ? "filled" : "")">
-                                &#9733;
-                            </span>
-                        }
+                    <label for="skillLevel">Skill Level</label>
+                    <div class="skill-level-bar">
+                        <div class="skill-level-segment @(g.SkillLevel >= 1 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 1)">1</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 2 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 2)">2</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 3 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 3)">3</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 4 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 4)">4</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 5 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 5)">5</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 6 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 6)">6</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 7 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 7)">7</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 8 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 8)">8</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 9 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 9)">9</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 10 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 10)">10</div>
                     </div>
-                    <label for="skillLevel">Skill Level:</label>
-                    <select id="skillLevel" @onchange="(e) => UpdateSkillLevel(g.Id, e.Value)">
-                        @for (int i = 1; i <= 10; i++)
-                        {
-                            <option value="@i" selected="@(g.SkillLevel == i)">
-                                @i
-                            </option>
-                        }
-                    </select>
+
+
 
                     <!-- Checkbox for Ready to Play -->
                     <div>
@@ -291,23 +304,21 @@ else
                     </div>
 
                     <!-- Dropdown for Skill Level -->
-                    <div>
-                        @for (int i = 1; i <= 10; i++)
-                        {
-                            <span class="star @((i <= g.SkillLevel) ? "filled" : "")">
-                                &#9733;
-                            </span>
-                        }
+                    <label for="skillLevel">Skill Level</label>
+                    <div class="skill-level-bar">
+                        <div class="skill-level-segment @(g.SkillLevel >= 1 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 1)">1</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 2 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 2)">2</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 3 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 3)">3</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 4 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 4)">4</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 5 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 5)">5</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 6 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 6)">6</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 7 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 7)">7</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 8 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 8)">8</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 9 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 9)">9</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 10 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 10)">10</div>
                     </div>
-                    <label for="skillLevel">Skill Level:</label>
-                    <select id="skillLevel" @onchange="(e) => UpdateSkillLevel(g.Id, e.Value)">
-                        @for (int i = 1; i <= 10; i++)
-                        {
-                            <option value="@i" selected="@(g.SkillLevel == i)">
-                                @i
-                            </option>
-                        }
-                    </select>
+
+
 
                     <!-- Checkbox for Ready to Play -->
                     <div>
@@ -679,24 +690,31 @@ GROUP BY g.Id, ug.SkillLevel, ug.ReadyToPlay;";
         StateHasChanged(); // Odśwież UI
     }
 
-    private async Task UpdateSkillLevel(int gameId, object skillLevelValue)
+    private async Task UpdateSkillLevel(int gameId, int skillLevel)
     {
-        if (int.TryParse(skillLevelValue.ToString(), out int skillLevel))
+        try
         {
             string sql = "UPDATE User_Game SET SkillLevel = @SkillLevel WHERE IdGame = @IdGame";
-
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             string userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             await _data.SaveData(sql, new { SkillLevel = skillLevel, IdGame = gameId, UserId = userId }, _config.GetConnectionString("default"));
 
+            // Update the local state
             var game = games.FirstOrDefault(g => g.Id == gameId);
             if (game != null)
             {
                 game.SkillLevel = skillLevel;
             }
+
+            StateHasChanged(); // Refresh the UI
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating skill level: {ex.Message}");
         }
     }
+
 
     private async Task UpdateReadyToPlay(int gameId, bool isReadyToPlay)
     {
