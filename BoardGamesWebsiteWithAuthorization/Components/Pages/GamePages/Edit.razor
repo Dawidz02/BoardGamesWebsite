@@ -206,14 +206,30 @@ else
 
         categoryValidationMessage = "";
 
+        // Aktualizacja danych gry
         string gameSql = @"UPDATE games
                        SET GameName = @GameName, Author = @Author, Publisher = @Publisher, PlayTime = @PlayTime, GameDescription = @GameDescription
                        WHERE Id = @Id";
         await _data.SaveData(gameSql, game, _config.GetConnectionString("default"));
 
-        string gameCategorySql = "UPDATE Game_Category SET IdCategory = @IdCategory WHERE IdGame = @IdGame";
-        await _data.SaveData(gameCategorySql, new { IdCategory = selectedCategoryId, IdGame = game.Id }, _config.GetConnectionString("default"));
+        // Sprawdzenie, czy gra ma przypisaną kategorię
+        string checkCategorySql = "SELECT COUNT(1) FROM Game_Category WHERE IdGame = @IdGame";
+        int categoryExists = (await _data.LoadData<int, dynamic>(checkCategorySql, new { IdGame = game.Id }, _config.GetConnectionString("default"))).FirstOrDefault();
 
+        if (categoryExists > 0)
+        {
+            // Aktualizacja istniejącej kategorii
+            string updateCategorySql = "UPDATE Game_Category SET IdCategory = @IdCategory WHERE IdGame = @IdGame";
+            await _data.SaveData(updateCategorySql, new { IdCategory = selectedCategoryId, IdGame = game.Id }, _config.GetConnectionString("default"));
+        }
+        else
+        {
+            // Wstawienie nowego przypisania kategorii
+            string insertCategorySql = "INSERT INTO Game_Category (IdGame, IdCategory) VALUES (@IdGame, @IdCategory)";
+            await _data.SaveData(insertCategorySql, new { IdGame = game.Id, IdCategory = selectedCategoryId }, _config.GetConnectionString("default"));
+        }
+
+        // Resetowanie głównego obrazu (jeśli istnieje)
         string resetMainImageSql = @"UPDATE Game_Image SET IsMain = 0 WHERE IdGame = @IdGame";
         await _data.SaveData(resetMainImageSql, new { IdGame = game.Id }, _config.GetConnectionString("default"));
 
@@ -229,6 +245,7 @@ else
             await _data.SaveData(insertImageSql, new { IdGame = game.Id, ImageUrl = newImage.ImageUrl, IsMain = newImage.IsMain }, _config.GetConnectionString("default"));
         }
 
+        // Obsługa DLC
         if (isDlc)
         {
             if (selectedMainGameId > 0)
@@ -252,6 +269,7 @@ else
 
         Navigation.NavigateTo("/games");
     }
+
 
     private void AddNewImage()
     {

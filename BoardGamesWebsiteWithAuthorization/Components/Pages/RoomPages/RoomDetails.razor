@@ -1,0 +1,129 @@
+﻿@page "/rooms/{roomId:int}"
+@rendermode InteractiveServer
+
+@using BoardGamesWebsiteWithAuthorization.Models
+@using DataLibrary
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject NavigationManager Navigation
+
+<style>
+    .room-details {
+        padding: 2rem;
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        margin: 2rem auto;
+        max-width: 600px;
+    }
+
+        .room-details h2 {
+            margin-bottom: 1rem;
+        }
+
+        .room-details ul {
+            padding-left: 1rem;
+        }
+
+            .room-details ul li {
+                margin: 0.5rem 0;
+            }
+</style>
+
+
+<h3>Room Details</h3>
+
+@if (room == null)
+{
+    <p><em>Loading room details...</em></p>
+}
+else
+{
+    <div class="room-details">
+        <h2>@room.RoomName</h2>
+        <p><strong>Game:</strong> @room.GameName</p>
+        <p><strong>Host:</strong> @room.HostName</p>
+        <p><strong>Location:</strong> @room.Localization</p>
+        <p><strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")</p>
+        <p><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
+        <p><strong>Skill Level Required:</strong> @room.SkillLevelRequired</p>
+        <p><strong>Description:</strong> @room.RoomDescription</p>
+
+        <h4>Participants</h4>
+        @if (participants == null || !participants.Any())
+        {
+            <p>No participants yet.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var participant in participants)
+                {
+                    <li>@participant.UserName (@participant.Email)</li>
+                }
+            </ul>
+        }
+
+        <button class="btn btn-secondary" @onclick="GoBack">Back to Rooms</button>
+    </div>
+}
+
+@code {
+    [Parameter] public int roomId { get; set; }
+    private RoomModel room = new RoomModel();
+    private List<UserModel> participants = new List<UserModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoomDetails();
+        await LoadParticipants();
+    }
+
+    private async Task LoadRoomDetails()
+    {
+        string sql = @"
+        SELECT
+            r.Id AS Id,
+            r.RoomName,
+            g.GameName,
+            u.WebUserName AS HostName,
+            r.Availability,
+            r.Localization,
+            r.CreatingDate,
+            r.RoomDescription,
+            r.SkillLevelRequired,
+            r.WhoCanJoin,
+            gi.ImageUrl AS MainGameImageUrl
+        FROM Rooms r
+        JOIN Games g ON r.IdGame = g.Id
+        JOIN AspNetUsers u ON r.IdHost = u.Id
+        LEFT JOIN Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
+        WHERE r.Id = @RoomId;
+        ";
+
+        var result = await _data.LoadData<RoomModel, dynamic>(sql, new { RoomId = roomId }, _config.GetConnectionString("default"));
+        if (result != null && result.Count > 0)
+        {
+            room = result.First();
+        }
+    }
+
+    private async Task LoadParticipants()
+    {
+        string sql = @"
+        SELECT
+            u.WebUserName AS UserName,
+            u.Email
+        FROM Room_Participants rp
+        JOIN AspNetUsers u ON rp.IdUser = u.Id
+        WHERE rp.IdRoom = @RoomId;
+        ";
+
+        participants = await _data.LoadData<UserModel, dynamic>(sql, new { RoomId = roomId }, _config.GetConnectionString("default"));
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/rooms");
+    }
+}

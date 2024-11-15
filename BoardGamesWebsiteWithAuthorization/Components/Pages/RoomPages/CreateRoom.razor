@@ -84,10 +84,39 @@
             border-radius: 4px;
         }
 
+    .skill-level-bar {
+        display: flex;
+        gap: 4px;
+    }
+
+    .skill-level-segment {
+        flex: 1;
+        padding: 0.5rem;
+        text-align: center;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .skill-level-segment:hover {
+            background-color: #e9ecef;
+        }
+
+        .skill-level-segment.selected {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+
 </style>
 
 <h3>Create a New Room</h3>
-
+<!-- Przycisk powrotu do strony gier -->
+<a href="/rooms" class="btn btn-secondary mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Rooms
+</a>
 <div class="create-room-container">
     <!-- Left Column: Room Creation Form -->
     <div class="form-section">
@@ -125,7 +154,18 @@
 
             <div class="form-group">
                 <label for="skillLevel">Skill Level Required</label>
-                <InputNumber id="skillLevel" class="form-control" @bind-Value="newRoom.SkillLevelRequired" />
+                <div class="skill-level-bar">
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 1 ? "selected" : "")" @onclick="() => SetSkillLevel(1)">1</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 2 ? "selected" : "")" @onclick="() => SetSkillLevel(2)">2</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 3 ? "selected" : "")" @onclick="() => SetSkillLevel(3)">3</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 4 ? "selected" : "")" @onclick="() => SetSkillLevel(4)">4</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 5 ? "selected" : "")" @onclick="() => SetSkillLevel(5)">5</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 6 ? "selected" : "")" @onclick="() => SetSkillLevel(6)">6</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 7 ? "selected" : "")" @onclick="() => SetSkillLevel(7)">7</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 8 ? "selected" : "")" @onclick="() => SetSkillLevel(8)">8</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 9 ? "selected" : "")" @onclick="() => SetSkillLevel(9)">9</div>
+                    <div class="skill-level-segment @(newRoom.SkillLevelRequired == 10 ? "selected" : "")" @onclick="() => SetSkillLevel(10)">10</div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -232,5 +272,11 @@
         {
             Console.WriteLine($"Error creating room: {ex.Message}");
         }
+    }
+
+    private void SetSkillLevel(int level)
+    {
+        newRoom.SkillLevelRequired = level;
+        StateHasChanged(); // Refreshes the UI immediately
     }
 }

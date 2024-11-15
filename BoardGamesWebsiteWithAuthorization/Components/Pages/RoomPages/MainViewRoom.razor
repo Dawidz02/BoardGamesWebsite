@@ -9,89 +9,165 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
+
 <style>
-    /* Container for the Room Cards */
     .room-cards-container {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+        gap: 1.5rem;
     }
 
-    /* General Card Styling */
     .room-card {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        padding: 1.5rem;
+        border-radius: 10px;
+        background-color: #ffffff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
         .room-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
         }
 
-        /* Card Image Styling */
-        .room-card img.card-img-top {
-            width: 100%;
-            max-height: 200px;
-            object-fit: contain;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            background-color: white;
-        }
-
-        /* Card Title */
-        .room-card .card-title {
-            font-size: 1.25rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-
-        /* Card Text */
-        .room-card .card-text {
-            font-size: 0.9rem;
-            color: #555;
-        }
-
-        /* Button Styling */
-        .room-card .btn-primary {
-            background-color: #007bff;
-            border: none;
-            transition: background-color 0.2s ease;
-        }
-
-            .room-card .btn-primary:hover {
-                background-color: #0056b3;
-            }
-
-        .room-card .btn-join {
-            background-color: #28a745;
-            border: none;
-            transition: background-color 0.2s ease;
-        }
-
-            .room-card .btn-join:hover {
-                background-color: #218838;
-            }
-
-        .room-card .btn-delete {
-            background-color: #dc3545;
-            border: none;
-            transition: background-color 0.2s ease;
-        }
-
-            .room-card .btn-delete:hover {
-                background-color: #c82333;
-            }
-
-    /* Custom label for rooms created by the user */
-    .owned-room-label {
-        font-size: 1rem;
-        font-weight: bold;
-        color: #007bff;
-        margin-top: 10px;
-        text-align: center;
+    /* Profile Section */
+    .profile-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-right: 1.5rem;
     }
+
+    .profile-image-wrapper {
+        position: relative;
+        width: 140px; /* Increased width */
+        height: 140px; /* Increased height */
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .profile-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; 
+    }
+
+    .profile-image-wrapper:hover .image-overlay {
+        opacity: 1;
+    }
+
+    /* Skill Level Bar with Segments */
+    .skill-level-bar {
+        display: flex;
+        width: 160px;
+        height: 17px;
+        gap: 2px;
+        margin-top: 0.5rem;
+    }
+
+    .skill-segment {
+        flex: 1;
+        background-color: #e0e0e0;
+        border-radius: 2px;
+        position: relative; /* Position each segment relative to contain the number */
+        transition: background-color 0.3s ease;
+    }
+
+        .skill-segment.active {
+            background-color: #28a745; /* Green color for active segments */
+        }
+
+    .skill-number {
+        font-size: 10px; /* Small font size for the numbers */
+        color: #ffffff; /* White color for contrast */
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%); /* Center the number within each segment */
+        pointer-events: none; /* Ensure the number does not interfere with clicks */
+    }
+
+
+    /* Details Section */
+    .details-section {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    .room-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .location,
+    .game-name,
+    .availability,
+    .host,
+    .join-type {
+        font-size: 0.9rem;
+        color: #666;
+        margin: 0.25rem 0;
+    }
+
+    /* Action Buttons Section */
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: bold;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+        border: none;
+    }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+    .btn-join {
+        background-color: #28a745;
+        color: white;
+        border: none;
+    }
+
+        .btn-join:hover {
+            background-color: #218838;
+        }
+
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+    }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+    .btn-delete {
+        background-color: #ff6347;
+        color: white;
+        border: none;
+    }
+
+        .btn-delete:hover {
+            background-color: #e53e3e;
+        }
 </style>
 
 <h3>Rooms List</h3>
@@ -105,46 +181,62 @@
 <div class="room-cards-container">
     @foreach (var room in rooms)
     {
-        <div class="room-card card">
-            <img class="card-img-top" src="@room.MainGameImageUrl" alt="Main Game Image" />
-
-            <div class="card-body">
-                <h5 class="card-title">@room.RoomName</h5>
-                <p class="card-text"><strong>Game:</strong> @room.GameName</p>
-                <p class="card-text"><strong>Host:</strong> @room.HostName</p>
-                <p class="card-text"><strong>Location:</strong> @room.Localization</p>
-                <p class="card-text"><strong>Skill Level:</strong> @room.SkillLevelRequired</p>
-                <p class="card-text"><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
-                <p class="card-text"><strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")</p>
-
-                @if (!string.IsNullOrEmpty(room.RoomDescription))
-                {
-                    <p class="card-text"><strong>Description:</strong> @room.RoomDescription</p>
-                }
-
-                @if (room.IsUserRoom)
-                {
-                    <div class="owned-room-label">This room belongs to you</div>
-
-                    <!-- Show 'Delete' button for the owner -->
-                    <button class="btn btn-delete" @onclick="() => DeleteRoom(room.Id)">Delete Room</button>
-                }
-                else
-                {
-                    <!-- If not the owner, show Join/Leave buttons -->
-                    <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
-
-                    @if (room.IsUserInRoom)
+        <div class="room-card">
+            <!-- Profile Image and Skill Level Section -->
+            <div class="profile-section">
+                <div class="profile-image-wrapper">
+                    <img class="profile-image" src="@room.MainGameImageUrl" alt="Main Game Image" />
+                    <div class="image-overlay">
+                        <i class="fas fa-upload"></i> <!-- Icon for upload/edit image -->
+                    </div>
+                </div>
+                <!-- Skill Level Indicator Bar with Segments -->
+                <!-- Skill Level Indicator Bar with Segments -->
+                <div class="skill-level-bar">
+                    @for (int i = 1; i <= 10; i++)
                     {
-                        <!-- Show 'Leave Room' if the user is in the room -->
-                        <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave Room</button>
+                        <div class="skill-segment @(i <= room.SkillLevelRequired ? "active" : "")">
+                            <span class="skill-number">@i</span> <!-- Add number from 1 to 10 inside each segment -->
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Room Details Section -->
+            <div class="details-section">
+                <h2 class="room-title">@room.RoomName</h2>
+                <p class="location">@room.Localization</p>
+                <p class="game-name"><strong>Game:</strong> @room.GameName</p>
+                <p class="availability">
+                    <strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")
+                </p>
+                <p class="host"><strong>Host:</strong> @room.HostName</p>
+                <p class="join-type"><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    @if (room.IsUserRoom)
+                    {
+                        <!-- Show 'Delete' button for the owner -->
+                        <button class="btn btn-delete" @onclick="() => DeleteRoom(room.Id)">Delete Room</button>
                     }
                     else
                     {
-                        <!-- Show 'Join Room' if the user is not in the room -->
-                        <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
+                        <!-- If not the owner, show Join/Leave buttons -->
+                        <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">View Room</button>
+
+                        @if (room.IsUserInRoom)
+                        {
+                            <!-- Show 'Leave Room' if the user is in the room -->
+                            <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave Room</button>
+                        }
+                        else
+                        {
+                            <!-- Show 'Join Room' if the user is not in the room -->
+                            <button class="btn btn-join" @onclick="() => JoinRoom(room.Id)">Join Room</button>
+                        }
                     }
-                }
+                </div>
             </div>
         </div>
     }
