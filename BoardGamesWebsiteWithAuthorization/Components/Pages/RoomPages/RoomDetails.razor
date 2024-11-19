@@ -6,6 +6,7 @@
 @inject IDataAccess _data
 @inject IConfiguration _config
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <style>
     .room-details {
@@ -30,7 +31,6 @@
             }
 </style>
 
-
 <h3>Room Details</h3>
 
 @if (room == null)
@@ -41,8 +41,15 @@ else
 {
     <div class="room-details">
         <h2>@room.RoomName</h2>
-        <p><strong>Game:</strong> @room.GameName</p>
-        <p><strong>Host:</strong> @room.HostName</p>
+        <p>
+            <strong>Game:</strong> @room.GameName
+        </p>
+        <p>
+            <strong>Host:</strong>
+            <span style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">
+                @room.HostName
+            </span>
+        </p>
         <p><strong>Location:</strong> @room.Localization</p>
         <p><strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")</p>
         <p><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
@@ -57,9 +64,15 @@ else
         else
         {
             <ul>
+                <!-- Highlight host in participants list if they are a friend -->
+                <li style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">
+                    @room.HostName
+                </li>
                 @foreach (var participant in participants)
                 {
-                    <li>@participant.UserName (@participant.Email)</li>
+                    <li style="color: @(friendIds.Contains(participant.Id) ? "green" : "black")">
+                        @participant.UserName (@participant.Name @participant.SecondName)
+                    </li>
                 }
             </ul>
         }
@@ -72,11 +85,45 @@ else
     [Parameter] public int roomId { get; set; }
     private RoomModel room = new RoomModel();
     private List<UserModel> participants = new List<UserModel>();
+    private HashSet<string> friendIds = new HashSet<string>();
+    private string loggedInUserId;
 
     protected override async Task OnInitializedAsync()
     {
+        // Pobierz ID zalogowanego użytkownika
+        loggedInUserId = await GetLoggedInUserId();
+
+        // Załaduj znajomych i szczegóły pokoju
+        await LoadFriends();
         await LoadRoomDetails();
         await LoadParticipants();
+    }
+
+    private async Task<string> GetLoggedInUserId()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private async Task LoadFriends()
+    {
+        string sql = @"
+        SELECT
+            CASE
+                WHEN IdUser1 = @UserId THEN IdUser2
+                ELSE IdUser1
+            END AS FriendId
+        FROM Friends
+        WHERE IdUser1 = @UserId OR IdUser2 = @UserId;
+        ";
+
+        var friends = await _data.LoadData<string, dynamic>(
+            sql,
+            new { UserId = loggedInUserId },
+            _config.GetConnectionString("default")
+        );
+
+        friendIds = friends.ToHashSet();
     }
 
     private async Task LoadRoomDetails()
@@ -86,6 +133,7 @@ else
             r.Id AS Id,
             r.RoomName,
             g.GameName,
+            u.Id AS IdHost, -- Id hosta
             u.WebUserName AS HostName,
             r.Availability,
             r.Localization,
@@ -101,7 +149,11 @@ else
         WHERE r.Id = @RoomId;
         ";
 
-        var result = await _data.LoadData<RoomModel, dynamic>(sql, new { RoomId = roomId }, _config.GetConnectionString("default"));
+        var result = await _data.LoadData<RoomModel, dynamic>(
+            sql,
+            new { RoomId = roomId },
+            _config.GetConnectionString("default")
+        );
         if (result != null && result.Count > 0)
         {
             room = result.First();
@@ -112,14 +164,21 @@ else
     {
         string sql = @"
         SELECT
+            u.Id,
             u.WebUserName AS UserName,
-            u.Email
+            u.Email,
+            u.Name,
+            u.SecondName
         FROM Room_Participants rp
         JOIN AspNetUsers u ON rp.IdUser = u.Id
         WHERE rp.IdRoom = @RoomId;
         ";
 
-        participants = await _data.LoadData<UserModel, dynamic>(sql, new { RoomId = roomId }, _config.GetConnectionString("default"));
+        participants = await _data.LoadData<UserModel, dynamic>(
+            sql,
+            new { RoomId = roomId },
+            _config.GetConnectionString("default")
+        );
     }
 
     private void GoBack()

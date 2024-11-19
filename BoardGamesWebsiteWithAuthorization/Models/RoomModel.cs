@@ -23,6 +23,7 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public bool IsUserRoom { get; set; }
         public bool IsAnyoneSelected { get; set; }  // Tracks "Anyone"
         public bool IsInviteOnlySelected { get; set; }  // Tracks "Invite Only"
+        public int FriendsCount { get; set; } // New Property
         public ICollection<RoomParticipantModel> RoomParticipants { get; set; }
         public ICollection<RoomInvitationModel> RoomInvitations { get; set; }
     }

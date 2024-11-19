@@ -268,13 +268,16 @@ else
                     </p>
                     <p class="host"><strong>Host:</strong> @room.HostName</p>
                     <p class="join-type"><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
+                    <p class="friends-number">
+                        <strong>Friends in Room:</strong> @room.FriendsCount
+                    </p>
 
                     <div class="action-buttons">
                         @if (room.IsUserRoom)
                         {
                             <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">More</button>
                             <button class="btn btn-primary" @onclick="() => EditRoom(room.Id)">Edit</button>
-                            <button class="btn btn-danger" @onclick="() => DeleteRoom(room.Id)">Delete Room</button>
+                            <button class="btn btn-danger" @onclick="() => ShowDeleteModal(room.Id)">Delete Room</button>
                         }
                         else
                         {
@@ -299,6 +302,32 @@ else
         }
     </div>
 }
+<!-- Modal for delete confirmation -->
+@if (showDeleteModal)
+{
+    <div class="modal show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="close" aria-label="Close" @onclick="CloseDeleteModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the room and all its participants?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteRoom">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div> <!-- Overlay for modal -->
+}
+
 
 @code {
     private bool filterByReadyToPlay = false;
@@ -307,6 +336,9 @@ else
     private List<RoomModel> allRooms = new List<RoomModel>();
     private List<UserGameModel> userGames = new List<UserGameModel>();
     private string userId;
+    private bool showDeleteModal = false; // Kontroluje widoczność modala
+    private int roomIdToDelete; // Przechowuje ID pokoju do usunięcia
+
 
     private string searchQuery
     {
@@ -334,7 +366,7 @@ SELECT
     r.Id AS Id,
     r.RoomName,
     g.GameName,
-    g.Id AS IdGame, -- Dodaj IdGame
+    g.Id AS IdGame,
     u.WebUserName AS HostName,
     r.Availability,
     r.Localization,
@@ -343,7 +375,26 @@ SELECT
     r.SkillLevelRequired,
     r.WhoCanJoin,
     gi.ImageUrl AS MainGameImageUrl,
-    r.IdHost
+    r.IdHost,
+    (
+        SELECT COUNT(*)
+        FROM Room_Participants rp
+        INNER JOIN Friends f
+            ON (f.IdUser1 = rp.IdUser OR f.IdUser2 = rp.IdUser)
+        WHERE rp.IdRoom = r.Id
+          AND (f.IdUser1 = @UserId OR f.IdUser2 = @UserId)
+          AND rp.IdUser != @UserId -- Exclude the current user
+    ) +
+    (
+        CASE
+            WHEN r.IdHost != @UserId AND EXISTS (
+                SELECT 1
+                FROM Friends f
+                WHERE (f.IdUser1 = r.IdHost OR f.IdUser2 = r.IdHost)
+                  AND (f.IdUser1 = @UserId OR f.IdUser2 = @UserId)
+            ) THEN 1 ELSE 0
+        END
+    ) AS FriendsCount
 FROM
     Rooms r
 JOIN
@@ -354,8 +405,7 @@ LEFT JOIN
     Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
 ";
 
-
-        allRooms = await _data.LoadData<RoomModel, dynamic>(sql, new { }, _config.GetConnectionString("default"));
+        allRooms = await _data.LoadData<RoomModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
 
         foreach (var room in allRooms)
         {
@@ -365,6 +415,8 @@ LEFT JOIN
 
         FilterRooms();
     }
+
+
 
     private async Task LoadUserGames()
     {
@@ -467,15 +519,71 @@ LEFT JOIN
 
     private async Task DeleteRoom(int roomId)
     {
-        var roomToDelete = new { IdRoom = roomId };
+        try
+        {
+            // Usuń wszystkich uczestników z pokoju
+            string sqlDeleteParticipants = @"
+        DELETE FROM Room_Participants WHERE IdRoom = @IdRoom;
+        ";
+            await _data.SaveData(sqlDeleteParticipants, new { IdRoom = roomId }, _config.GetConnectionString("default"));
 
-        string sql = @"
+            // Usuń sam pokój
+            string sqlDeleteRoom = @"
         DELETE FROM Rooms WHERE Id = @IdRoom;
         ";
+            await _data.SaveData(sqlDeleteRoom, new { IdRoom = roomId }, _config.GetConnectionString("default"));
 
-        await _data.SaveData(sql, roomToDelete, _config.GetConnectionString("default"));
-        await LoadRooms();
+            // Odśwież listę pokoi
+            await LoadRooms();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting room: {ex.Message}");
+            throw;
+        }
     }
+
+    private void ShowDeleteModal(int roomId)
+    {
+        roomIdToDelete = roomId;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+    }
+
+    private async Task ConfirmDeleteRoom()
+    {
+        try
+        {
+            // Usuń wszystkich uczestników z pokoju
+            string sqlDeleteParticipants = @"
+        DELETE FROM Room_Participants WHERE IdRoom = @IdRoom;
+        ";
+            await _data.SaveData(sqlDeleteParticipants, new { IdRoom = roomIdToDelete }, _config.GetConnectionString("default"));
+
+            // Usuń sam pokój
+            string sqlDeleteRoom = @"
+        DELETE FROM Rooms WHERE Id = @IdRoom;
+        ";
+            await _data.SaveData(sqlDeleteRoom, new { IdRoom = roomIdToDelete }, _config.GetConnectionString("default"));
+
+            // Odśwież listę pokoi
+            await LoadRooms();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting room: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            showDeleteModal = false; // Zamknij modal po zakończeniu operacji
+        }
+    }
+
 
     private void ToggleUserGamesFilter()
     {
