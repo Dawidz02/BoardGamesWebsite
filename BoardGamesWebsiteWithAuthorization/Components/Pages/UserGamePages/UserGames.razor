@@ -173,11 +173,26 @@
             background-color: #e0e0e0;
         }
 
-        .skill-level-segment.selected {
-            background-color: #28a745;
+        .skill-level-segment.low {
+            background-color: red;
             color: white;
-            font-weight: bold;
         }
+
+        .skill-level-segment.medium {
+            background-color: orange;
+            color: white;
+        }
+
+        .skill-level-segment.high {
+            background-color: green;
+            color: white;
+        }
+
+        .skill-level-segment.selected {
+            font-weight: bold;
+            border: 2px solid black; /* Dodatkowe wyróżnienie dla wybranego poziomu */
+        }
+
 </style>
 
 <h3>My Games</h3>
@@ -249,18 +264,47 @@ else
                     <!-- Dropdown for Skill Level -->
                     <label for="skillLevel">Skill Level</label>
                     <div class="skill-level-bar">
-                        <div class="skill-level-segment @(g.SkillLevel >= 1 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 1)">1</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 2 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 2)">2</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 3 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 3)">3</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 4 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 4)">4</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 5 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 5)">5</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 6 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 6)">6</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 7 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 7)">7</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 8 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 8)">8</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 9 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 9)">9</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 10 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 10)">10</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 1 ? (g.SkillLevel <= 3 ? "low selected" : g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 1)">
+                            1
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 2 ? (g.SkillLevel <= 3 ? "low selected" : g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 2)">
+                            2
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 3 ? (g.SkillLevel <= 3 ? "low selected" : g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 3)">
+                            3
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 4 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 4)">
+                            4
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 5 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 5)">
+                            5
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 6 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 6)">
+                            6
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 7 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 7)">
+                            7
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 8 ? "high selected" : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 8)">
+                            8
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 9 ? "high selected" : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 9)">
+                            9
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 10 ? "high selected" : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 10)">
+                            10
+                        </div>
                     </div>
-
 
 
                     <!-- Checkbox for Ready to Play -->
@@ -306,16 +350,46 @@ else
                     <!-- Dropdown for Skill Level -->
                     <label for="skillLevel">Skill Level</label>
                     <div class="skill-level-bar">
-                        <div class="skill-level-segment @(g.SkillLevel >= 1 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 1)">1</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 2 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 2)">2</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 3 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 3)">3</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 4 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 4)">4</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 5 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 5)">5</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 6 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 6)">6</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 7 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 7)">7</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 8 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 8)">8</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 9 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 9)">9</div>
-                        <div class="skill-level-segment @(g.SkillLevel >= 10 ? "selected" : "")" @onclick="() => UpdateSkillLevel(g.Id, 10)">10</div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 1 ? (g.SkillLevel <= 3 ? "low selected" : g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 1)">
+                            1
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 2 ? (g.SkillLevel <= 3 ? "low selected" : g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 2)">
+                            2
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 3 ? (g.SkillLevel <= 3 ? "low selected" : g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 3)">
+                            3
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 4 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 4)">
+                            4
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 5 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 5)">
+                            5
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 6 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 6)">
+                            6
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 7 ? (g.SkillLevel <= 7 ? "medium selected" : "high selected") : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 7)">
+                            7
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 8 ? "high selected" : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 8)">
+                            8
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 9 ? "high selected" : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 9)">
+                            9
+                        </div>
+                        <div class="skill-level-segment @(g.SkillLevel >= 10 ? "high selected" : "")"
+                             @onclick="() => UpdateSkillLevel(g.Id, 10)">
+                            10
+                        </div>
                     </div>
 
 

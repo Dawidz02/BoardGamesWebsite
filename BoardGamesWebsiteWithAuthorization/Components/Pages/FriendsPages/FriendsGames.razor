@@ -84,10 +84,19 @@
         margin-bottom: 10px;
     }
 
+    .skill-level-horizontal-bar {
+        display: flex;
+        gap: 5px;
+        margin: 10px 0;
+        justify-content: center;
+        align-items: center;
+    }
+
     .skill-level-segment {
-        flex: 1;
+        width: 30px;
+        height: 30px;
         text-align: center;
-        padding: 5px 0;
+        line-height: 30px;
         border: 1px solid #ddd;
         border-radius: 5px;
         background-color: #f9f9f9;
@@ -95,13 +104,27 @@
         transition: background-color 0.3s, color 0.3s;
     }
 
-        .skill-level-segment.selected {
-            background-color: #28a745;
+        /* Kolory w zależności od poziomu */
+        .skill-level-segment.low {
+            background-color: red;
             color: white;
-            font-weight: bold;
         }
 
+        .skill-level-segment.medium {
+            background-color: orange;
+            color: white;
+        }
 
+        .skill-level-segment.high {
+            background-color: green;
+            color: white;
+        }
+
+        /* Aktywne segmenty */
+        .skill-level-segment.selected {
+            font-weight: bold;
+            border: 2px solid black; /* Wyróżnienie dla aktywnego */
+        }
 </style>
 @if (games == null)
 {
@@ -137,10 +160,20 @@ else
                     </div>
                     <!-- Skill Level display as segments -->
                     <label for="skillLevel">Skill Level</label>
-                    <div class="skill-level-bar">
+                    <div class="skill-level-horizontal-bar">
                         @for (int i = 1; i <= 10; i++)
                         {
-                            <div class="skill-level-segment @(game.SkillLevel >= i ? "selected" : "")">
+                            string levelClass = game.SkillLevel switch
+                            {
+                                <= 3 => "low",
+                                <= 7 => "medium",
+                                _ => "high"
+                            };
+
+                            // Jeśli poziom `i` jest aktywny, dodaj `selected` do klasy
+                            string activeClass = i <= game.SkillLevel ? $"{levelClass} selected" : "";
+
+                            <div class="skill-level-segment @(activeClass)">
                                 @i
                             </div>
                         }
@@ -174,14 +207,24 @@ else
                         <p class="card-text">@game.GameDescription</p>
 
                         <!-- Skill Level display -->
-                        <div>
-                            @for (int i = 1; i <= 10; i++)
+                    <div class="skill-level-horizontal-bar">
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            string levelClass = game.SkillLevel switch
                             {
-                                <span class="star @((i <= game.SkillLevel) ? "filled" : "")">
-                                    &#9733;
-                                </span>
-                            }
-                        </div>
+                                <= 3 => "low",
+                                <= 7 => "medium",
+                                _ => "high"
+                            };
+
+                            // Jeśli poziom `i` jest aktywny, dodaj `selected` do klasy
+                            string activeClass = i <= game.SkillLevel ? $"{levelClass} selected" : "";
+
+                            <div class="skill-level-segment @(activeClass)">
+                                @i
+                            </div>
+                        }
+                    </div>
 
                         <!-- Ready to Play status -->
                         <div>
