@@ -1,5 +1,266 @@
-﻿<h3>RoomEdit</h3>
+﻿@page "/edit-room/{RoomId:int}"
+@rendermode InteractiveServer
+
+@using BoardGamesWebsiteWithAuthorization.Models
+@using DataLibrary
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<style>
+    .create-room-container {
+        display: grid;
+        grid-template-columns: 3fr 4fr; /* Lewa sekcja zajmuje 1/3, prawa 2/3 szerokości */
+        gap: 2rem;
+    }
+
+    .form-section {
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        height: 100%; /* Gwarantuje, że sekcja wypełni wysokość kontenera */
+    }
+
+    .games-section {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr); /* Cztery kolumny */
+        gap: 1rem;
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        max-height: 700px; /* Określ maksymalną wysokość sekcji */
+        overflow-y: auto; /* Tylko przewijanie w pionie */
+        overflow-x: hidden; /* Brak przewijania poziomego */
+    }
+
+        .games-section h4 {
+            grid-column: span 4; /* Rozciąga tytuł na cztery kolumny */
+            margin-bottom: 1rem;
+        }
+
+    .game-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 0.5rem;
+        text-align: center;
+        width: 200px; /* Stała szerokość */
+        height: 200px; /* Stała wysokość */
+        overflow: hidden; /* Zapewnia, że zawartość nie wychodzi poza rozmiar */
+        cursor: pointer; /* Kursor wskazuje na interaktywność */
+    }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+    .selected-game {
+        border: 2px solid green; /* Green border for the selected game */
+        background-color: #e0ffe0; /* Light green background for better visibility */
+    }
+
+
+    .game-card .game-name {
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        white-space: nowrap; /* Zapewnia, że tekst nie złamie się do nowej linii */
+        overflow: hidden; /* Ukrywa nadmiarowy tekst */
+        text-overflow: ellipsis; /* Dodaje "..." na końcu, jeśli tekst jest za długi */
+        width: 100%; /* Rozciąga na całą szerokość kontenera */
+        display: block;
+        max-width: calc(20ch); /* Ustawia maksymalną szerokość na 15 znaków (ch oznacza szerokość znaku) */
+    }
+
+    .game-card img {
+        width: 80%; /* Zapewnia, że szerokość obrazu wypełnia kontener */
+        height: 80%; /* Zapewnia, że wysokość obrazu wypełnia kontener */
+        object-fit: contain; /* Zapewnia, że cały obraz pasuje do kontenera bez przycinania */
+        border-radius: 4px;
+    }
+
+    .skill-level-bar {
+        display: flex;
+        gap: 4px;
+    }
+
+    .skill-level-segment {
+        flex: 1;
+        padding: 0.5rem;
+        text-align: center;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .skill-level-segment:hover {
+            background-color: #e9ecef;
+        }
+
+        .skill-level-segment.selected {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+</style>
+
+<h3>Edit Room</h3>
+<a href="/rooms" class="btn btn-secondary mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Rooms
+</a>
+
+<div class="create-room-container">
+    <!-- Left Column: Room Edit Form -->
+    <div class="form-section">
+        <EditForm Model="@room" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="roomName">Room Name</label>
+                <InputText id="roomName" class="form-control" @bind-Value="room.RoomName" />
+            </div>
+
+            <div class="form-group">
+                <label for="gameName">Game</label>
+                <select class="form-control" @bind="room.IdGame">
+                    <option value="">Select a Game</option>
+                    @foreach (var game in games)
+                    {
+                        <option value="@game.Id" class="@(room.IdGame == game.Id ? "selected-game" : "")">
+                            @game.GameName
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="localization">Localization</label>
+                <InputText id="localization" class="form-control" @bind-Value="room.Localization" />
+            </div>
+
+            <div class="form-group">
+                <label for="roomDescription">Room Description</label>
+                <InputTextArea id="roomDescription" class="form-control" @bind-Value="room.RoomDescription" />
+            </div>
+
+            <div class="form-group">
+                <label for="skillLevel">Skill Level Required</label>
+                <div class="skill-level-bar">
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 1 ? "selected" : "")" @onclick="() => SetSkillLevel(1)">1</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 2 ? "selected" : "")" @onclick="() => SetSkillLevel(2)">2</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 3 ? "selected" : "")" @onclick="() => SetSkillLevel(3)">3</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 4 ? "selected" : "")" @onclick="() => SetSkillLevel(4)">4</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 5 ? "selected" : "")" @onclick="() => SetSkillLevel(5)">5</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 6 ? "selected" : "")" @onclick="() => SetSkillLevel(6)">6</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 7 ? "selected" : "")" @onclick="() => SetSkillLevel(7)">7</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 8 ? "selected" : "")" @onclick="() => SetSkillLevel(8)">8</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 9 ? "selected" : "")" @onclick="() => SetSkillLevel(9)">9</div>
+                    <div class="skill-level-segment @(room.SkillLevelRequired == 10 ? "selected" : "")" @onclick="() => SetSkillLevel(10)">10</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="availability">Availability</label>
+                <InputCheckbox id="availability" @bind-Value="room.Availability" />
+            </div>
+
+            <div class="form-group">
+                <label>Who Can Join</label><br />
+                <InputRadioGroup @bind-Value="room.WhoCanJoin">
+                    <InputRadio id="anyoneRadio" Value="true" /> Anyone
+                    <InputRadio id="inviteOnlyRadio" Value="false" /> Invite Only
+                </InputRadioGroup>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </EditForm>
+    </div>
+
+    <!-- Right Column: User's Games with MainImage -->
+    <div class="games-section">
+        <h4>Your Games</h4>
+        @foreach (var game in games)
+        {
+            <div class="game-card @(room.IdGame == game.Id ? "selected-game" : "")" @onclick="() => SelectGame(game.Id)">
+                <div class="game-name">@game.GameName</div>
+                <img src="@game.MainImageUrl" alt="@game.GameName Main Image" />
+            </div>
+        }
+    </div>
+</div>
 
 @code {
+    [Parameter]
+    public int RoomId { get; set; }
 
+    private RoomModel room = new RoomModel();
+    private List<GameModel> games = new List<GameModel>();
+    private string userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        await LoadRoomDetails();
+        await LoadUserOwnedGames();
+    }
+
+    private async Task LoadRoomDetails()
+    {
+        string sql = @"
+        SELECT Id, RoomName, IdGame, Localization, RoomDescription, SkillLevelRequired, Availability, WhoCanJoin
+        FROM Rooms
+        WHERE Id = @RoomId;";
+
+        var rooms = await _data.LoadData<RoomModel, dynamic>(sql, new { RoomId }, _config.GetConnectionString("default"));
+        room = rooms.FirstOrDefault(); // Pobieramy pierwszy element, ponieważ RoomId jest unikalne
+    }
+
+    private async Task LoadUserOwnedGames()
+    {
+        string sql = @"
+        SELECT g.Id, g.GameName, gi.ImageUrl AS MainImageUrl
+        FROM Games g
+        JOIN User_Game ug ON g.Id = ug.IdGame
+        LEFT JOIN Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
+        WHERE ug.IdUser = @UserId;";
+
+        games = await _data.LoadData<GameModel, dynamic>(sql, new { UserId = userId }, _config.GetConnectionString("default"));
+    }
+
+    private void SelectGame(int gameId)
+    {
+        room.IdGame = gameId;
+    }
+
+    private async Task HandleSubmit()
+    {
+        string sql = @"
+        UPDATE Rooms
+        SET RoomName = @RoomName,
+            IdGame = @IdGame,
+            Localization = @Localization,
+            RoomDescription = @RoomDescription,
+            SkillLevelRequired = @SkillLevelRequired,
+            Availability = @Availability,
+            WhoCanJoin = @WhoCanJoin
+        WHERE Id = @Id;";
+
+        await _data.SaveData(sql, room, _config.GetConnectionString("default"));
+        Navigation.NavigateTo("/rooms");
+    }
+
+    private void SetSkillLevel(int level)
+    {
+        room.SkillLevelRequired = level;
+        StateHasChanged();
+    }
 }

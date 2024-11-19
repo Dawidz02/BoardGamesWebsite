@@ -243,7 +243,7 @@
                     @if (room.IsUserRoom)
                     {
                         <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">More</button>
-                        <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">Edit</button>
+                        <button class="btn btn-primary" @onclick="() => EditRoom(room.Id)">Edit</button>
                         <button class="btn btn-delete" @onclick="() => DeleteRoom(room.Id)">Delete Room</button>
                     }
                     else
@@ -376,4 +376,9 @@
     {
         Navigation.NavigateTo($"/rooms/{roomId}");
     }
+    private void EditRoom(int roomId)
+    {
+        Navigation.NavigateTo($"/edit-room/{roomId}");
+    }
+
 }
