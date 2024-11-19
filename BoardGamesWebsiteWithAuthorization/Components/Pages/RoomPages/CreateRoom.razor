@@ -127,30 +127,42 @@
             <div class="form-group">
                 <label for="roomName">Room Name</label>
                 <InputText id="roomName" class="form-control" @bind-Value="newRoom.RoomName" />
+                @if (string.IsNullOrWhiteSpace(newRoom.RoomName) && isSubmitted)
+                {
+                    <span class="text-danger">Room Name is required.</span>
+                }
             </div>
 
             <div class="form-group">
                 <label for="gameName">Game</label>
                 <select class="form-control" @bind="newRoom.IdGame">
                     <option value="">Select a Game</option>
-                        @foreach (var game in games)
-                        {
+                    @foreach (var game in games)
+                    {
                         <option value="@game.Id" class="@(newRoom.IdGame == game.Id ? "selected-game" : "")">
-                                @game.GameName
+                            @game.GameName
                         </option>
-                        }
+                    }
                 </select>
+                @if (newRoom.IdGame == 0 && isSubmitted)
+                {
+                    <span class="text-danger">You must select a game.</span>
+                }
             </div>
 
             <div class="form-group">
                 <label for="localization">Localization</label>
                 <InputText id="localization" class="form-control" @bind-Value="newRoom.Localization" />
+                @if (string.IsNullOrWhiteSpace(newRoom.Localization) && isSubmitted)
+                {
+                    <span class="text-danger">Localization is required.</span>
+                }
             </div>
-
             <div class="form-group">
                 <label for="roomDescription">Room Description</label>
                 <InputTextArea id="roomDescription" class="form-control" @bind-Value="newRoom.RoomDescription" />
             </div>
+
 
             <div class="form-group">
                 <label for="skillLevel">Skill Level Required</label>
@@ -166,7 +178,12 @@
                     <div class="skill-level-segment @(newRoom.SkillLevelRequired == 9 ? "selected" : "")" @onclick="() => SetSkillLevel(9)">9</div>
                     <div class="skill-level-segment @(newRoom.SkillLevelRequired == 10 ? "selected" : "")" @onclick="() => SetSkillLevel(10)">10</div>
                 </div>
+                @if (newRoom.SkillLevelRequired == 0 && isSubmitted)
+                {
+                    <span class="text-danger">You must select a skill level.</span>
+                }
             </div>
+
 
             <div class="form-group">
                 <label for="availability">Availability</label>
@@ -182,6 +199,10 @@
             </div>
 
             <button type="submit" class="btn btn-primary">Create Room</button>
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger mt-3">@errorMessage</div>
+            }
         </EditForm>
     </div>
 
@@ -202,6 +223,8 @@
     private RoomModel newRoom = new RoomModel();
     private string userId;
     private List<GameModel> games = new List<GameModel>();
+    private bool isSubmitted = false; // Flaga wskazująca, czy formularz został przesłany
+    private string errorMessage = ""; // Wiadomość błędu do wyświetlenia
 
     protected override async Task OnInitializedAsync()
     {
@@ -232,15 +255,17 @@
 
     private void SelectGame(int gameId)
     {
-        // Aktualizacja wybranej gry w formularzu
         newRoom.IdGame = gameId;
     }
 
     private async Task HandleSubmit()
     {
-        if (string.IsNullOrEmpty(newRoom.RoomName) || newRoom.IdGame == 0 || string.IsNullOrEmpty(newRoom.Localization))
+        isSubmitted = true; // Ustaw flagę, że formularz został przesłany
+
+        // Sprawdzanie, czy wymagane pola są wypełnione
+        if (string.IsNullOrEmpty(newRoom.RoomName) || newRoom.IdGame == 0 || string.IsNullOrEmpty(newRoom.Localization) || newRoom.SkillLevelRequired == 0)
         {
-            Console.WriteLine("Room Name, Game, and Localization are required.");
+            errorMessage = "Please fill out all required fields.";
             return;
         }
 
@@ -251,28 +276,28 @@
             IdHost = userId,
             Availability = newRoom.Availability,
             Localization = newRoom.Localization,
-            RoomDescription = newRoom.RoomDescription,
+            RoomDescription = newRoom.RoomDescription, // Nie jest już wymagane
             SkillLevelRequired = newRoom.SkillLevelRequired,
             WhoCanJoin = newRoom.WhoCanJoin,
             CreatingDate = DateTime.Now
         };
 
         string sql = @"
-        INSERT INTO Rooms (RoomName, IdGame, IdHost, Availability, Localization, RoomDescription, SkillLevelRequired, WhoCanJoin, CreatingDate)
-        VALUES (@RoomName, @IdGame, @IdHost, @Availability, @Localization, @RoomDescription, @SkillLevelRequired, @WhoCanJoin, @CreatingDate);
-        ";
+    INSERT INTO Rooms (RoomName, IdGame, IdHost, Availability, Localization, RoomDescription, SkillLevelRequired, WhoCanJoin, CreatingDate)
+    VALUES (@RoomName, @IdGame, @IdHost, @Availability, @Localization, @RoomDescription, @SkillLevelRequired, @WhoCanJoin, @CreatingDate);
+    ";
 
         try
         {
             await _data.SaveData(sql, room, _config.GetConnectionString("default"));
-            Console.WriteLine("Room created successfully.");
             Navigation.NavigateTo("/rooms");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error creating room: {ex.Message}");
+            errorMessage = $"Error creating room: {ex.Message}";
         }
     }
+
 
     private void SetSkillLevel(int level)
     {

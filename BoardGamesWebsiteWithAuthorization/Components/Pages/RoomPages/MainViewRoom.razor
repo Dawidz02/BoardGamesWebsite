@@ -192,6 +192,11 @@
         padding: 0.5rem 1.35rem;
     }
 
+    .btn-selected {
+        background-color: #bbb; /* Keeps the original blue color */
+        color: white;
+    }
+
 </style>
 
 <h3>Rooms List</h3>
@@ -201,10 +206,12 @@
 </a>
 
 <div>
-    <button class="btn btn-secondary mb-3" @onclick="ToggleUserGamesFilter">
+    <button class="btn mb-3 @(filterByUserGames ? "btn-selected" : "btn-secondary")"
+            @onclick="ToggleUserGamesFilter">
         Show My Games
     </button>
-    <button class="btn btn-secondary mb-3" @onclick="ToggleReadyToPlayFilter">
+    <button class="btn mb-3 @(filterByReadyToPlay ? "btn-selected" : "btn-secondary")"
+            @onclick="ToggleReadyToPlayFilter">
         Show My Ready to Play Games
     </button>
 </div>
@@ -451,7 +458,7 @@ LEFT JOIN
 
         string sql = @"
         DELETE FROM Room_Participants
-        WHERE IdRoom = @IdRoom AND IdUser = @UserId;
+        WHERE IdRoom = @IdRoom AND IdUser = @IdUser;
         ";
 
         await _data.SaveData(sql, participant, _config.GetConnectionString("default"));
