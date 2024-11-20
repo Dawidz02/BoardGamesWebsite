@@ -229,6 +229,10 @@
             @onclick="ToggleShowOnlyMyRooms">
         Show Only My Rooms
     </button>
+    <button class="btn mb-3 @(showParticipantRooms ? "btn-selected" : "btn-secondary")"
+            @onclick="ToggleParticipantRoomsFilter">
+        Show Participant Rooms
+    </button>
 </div>
 <div>
     <input @bind="searchQuery" placeholder="Search by Game Name or Location" class="form-control mb-3" />
@@ -356,8 +360,7 @@ else
     private int roomIdToDelete; // Przechowuje ID pokoju do usunięcia
     private bool hideMyRooms = false; // Czy ukryć pokoje użytkownika
     private bool showOnlyMyRooms = false; // Czy pokazać tylko pokoje użytkownika
-
-
+    private bool showParticipantRooms = false; // Czy pokazywać tylko pokoje, w których użytkownik jest uczestnikiem
 
     private string searchQuery
     {
@@ -489,6 +492,11 @@ LEFT JOIN
             filteredRooms = filteredRooms.Where(r => r.IdHost == userId);
         }
 
+        if (showParticipantRooms)
+        {
+            filteredRooms = filteredRooms.Where(r => r.IsUserInRoom);
+        }
+
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
             var query = searchQuery.ToLower();
@@ -501,8 +509,6 @@ LEFT JOIN
         rooms = filteredRooms.ToList();
         StateHasChanged(); // Odświeżenie UI
     }
-
-
 
     private async Task<bool> IsUserInRoom(int roomId)
     {
@@ -651,6 +657,12 @@ LEFT JOIN
         }
 
         FilterRooms();
+    }
+
+    private void ToggleParticipantRoomsFilter()
+    {
+        showParticipantRooms = !showParticipantRooms;
+        FilterRooms(); // Odfiltruj pokoje po zmianie stanu
     }
 
     private void NavigateToRoom(int roomId)

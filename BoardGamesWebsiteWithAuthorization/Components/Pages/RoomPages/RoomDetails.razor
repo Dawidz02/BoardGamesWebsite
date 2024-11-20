@@ -9,26 +9,83 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <style>
-    .room-details {
+    .room-container {
+        display: flex;
+        gap: 2rem; /* Odstęp między kolumnami */
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+        .room-container.two-columns {
+            justify-content: space-between; /* Dwie kolumny rozdzielone */
+        }
+
+    .room-details, .friends-details {
+        flex: 1; /* Obie kolumny zajmują równą przestrzeń */
         padding: 2rem;
         background-color: #f9f9f9;
         border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        margin: 2rem auto;
-        max-width: 600px;
+        max-width: 50%; /* Połowa szerokości */
     }
 
-        .room-details h2 {
-            margin-bottom: 1rem;
+    .room-container.centered .room-details {
+        max-width: 600px; /* Środek strony */
+    }
+
+    .friends-details {
+        max-width: 50%; /* Połowa szerokości */
+    }
+
+    .user-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 1rem;
+    }
+
+    .user-box {
+        width: 250px;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #333;
+        padding: 15px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 10px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
+    }
+
+        .user-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
 
-        .room-details ul {
-            padding-left: 1rem;
+        .user-box img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+            border: 2px solid #e0e0e0;
         }
 
-            .room-details ul li {
-                margin: 0.5rem 0;
-            }
+    .card-title {
+        font-weight: bold;
+        font-size: 16px;
+        margin: 5px 0;
+        color: #333;
+    }
+
+    .card-text {
+        font-size: 14px;
+        margin: 5px 0;
+        color: #777;
+    }
 </style>
 
 <h3>Room Details</h3>
@@ -39,61 +96,86 @@
 }
 else
 {
-    <div class="room-details">
-        <h2>@room.RoomName</h2>
-        <p>
-            <strong>Game:</strong> @room.GameName
-        </p>
-        <p>
-            <strong>Host:</strong>
-            <span style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">
-                @room.HostName
-            </span>
-        </p>
-        <p><strong>Location:</strong> @room.Localization</p>
-        <p><strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")</p>
-        <p><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
-        <p><strong>Skill Level Required:</strong> @room.SkillLevelRequired</p>
-        <p><strong>Description:</strong> @room.RoomDescription</p>
-
-        <h4>Participants</h4>
-        @if (participants == null || !participants.Any())
-        {
-            <p>No participants yet.</p>
-        }
-        else
-        {
-            <ul>
-                <!-- Highlight host in participants list if they are a friend -->
-                <li style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">
+    <div class="room-container @(room.IdHost == loggedInUserId ? "two-columns" : "centered")">
+        <!-- Szczegóły pokoju -->
+        <div class="room-details">
+            <h2>@room.RoomName</h2>
+            <p><strong>Game:</strong> @room.GameName</p>
+            <p>
+                <strong>Host:</strong>
+                <span style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">
                     @room.HostName
-                </li>
-                @foreach (var participant in participants)
-                {
-                    <li style="color: @(friendIds.Contains(participant.Id) ? "green" : "black")">
-                        @participant.UserName (@participant.Name @participant.SecondName)
-                    </li>
-                }
-            </ul>
-        }
+                </span>
+            </p>
+            <p><strong>Location:</strong> @room.Localization</p>
+            <p><strong>Availability:</strong> @(room.Availability ? "Available" : "Not Available")</p>
+            <p><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
+            <p><strong>Skill Level Required:</strong> @room.SkillLevelRequired</p>
+            <p><strong>Description:</strong> @room.RoomDescription</p>
 
-        <button class="btn btn-secondary" @onclick="GoBack">Back to Rooms</button>
+            <h4>Participants</h4>
+            @if (participants == null || !participants.Any())
+            {
+                <p>No participants yet.</p>
+            }
+            else
+            {
+                <ul>
+                    <li style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">@room.HostName</li>
+                    @foreach (var participant in participants)
+                    {
+                        <li style="color: @(friendIds.Contains(participant.Id) ? "green" : "black")">
+                            @participant.UserName (@participant.Name @participant.SecondName)
+                        </li>
+                    }
+                </ul>
+            }
+
+            <button class="btn btn-secondary" @onclick="GoBack">Back to Rooms</button>
+        </div>
+
+        <!-- Lista znajomych -->
+        @if (room.IdHost == loggedInUserId)
+        {
+            <div class="friends-details">
+                <h4>Your Friends</h4>
+                @if (friends == null || !friends.Any())
+                {
+                    <p>You don't have any friends yet.</p>
+                }
+                else
+                {
+                    <div class="user-container">
+                        @foreach (var friend in friends)
+                        {
+                            <div class="user-box">
+                                <img src="@(!string.IsNullOrEmpty(friend.UserPhoto) ? friend.UserPhoto : "path/to/default-image.jpg")" alt="User Photo" />
+                                <div class="card-title">@friend.WebUserName</div>
+                                <div class="card-text">
+                                    <span>@friend.Name</span>
+                                    <span>@friend.SecondName</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
     </div>
 }
+
 
 @code {
     [Parameter] public int roomId { get; set; }
     private RoomModel room = new RoomModel();
     private List<UserModel> participants = new List<UserModel>();
+    private List<UserModel> friends = new List<UserModel>(); // Znajomi
     private HashSet<string> friendIds = new HashSet<string>();
     private string loggedInUserId;
 
     protected override async Task OnInitializedAsync()
     {
-        // Pobierz ID zalogowanego użytkownika
         loggedInUserId = await GetLoggedInUserId();
-
-        // Załaduj znajomych i szczegóły pokoju
         await LoadFriends();
         await LoadRoomDetails();
         await LoadParticipants();
@@ -109,44 +191,47 @@ else
     {
         string sql = @"
         SELECT
-            CASE
-                WHEN IdUser1 = @UserId THEN IdUser2
-                ELSE IdUser1
-            END AS FriendId
-        FROM Friends
-        WHERE IdUser1 = @UserId OR IdUser2 = @UserId;
-        ";
+            u.Id,
+            u.WebUserName,
+            u.Name,
+            u.SecondName,
+            u.UserPhoto -- Dodanie kolumny UserPhoto
+        FROM Friends f
+        JOIN AspNetUsers u
+            ON (f.IdUser1 = u.Id AND f.IdUser2 = @UserId)
+            OR (f.IdUser2 = u.Id AND f.IdUser1 = @UserId)
+    ";
 
-        var friends = await _data.LoadData<string, dynamic>(
+        friends = await _data.LoadData<UserModel, dynamic>(
             sql,
             new { UserId = loggedInUserId },
             _config.GetConnectionString("default")
         );
 
-        friendIds = friends.ToHashSet();
+        friendIds = friends.Select(f => f.Id).ToHashSet();
     }
 
     private async Task LoadRoomDetails()
     {
         string sql = @"
-        SELECT
-            r.Id AS Id,
-            r.RoomName,
-            g.GameName,
-            u.Id AS IdHost, -- Id hosta
-            u.WebUserName AS HostName,
-            r.Availability,
-            r.Localization,
-            r.CreatingDate,
-            r.RoomDescription,
-            r.SkillLevelRequired,
-            r.WhoCanJoin,
-            gi.ImageUrl AS MainGameImageUrl
-        FROM Rooms r
-        JOIN Games g ON r.IdGame = g.Id
-        JOIN AspNetUsers u ON r.IdHost = u.Id
-        LEFT JOIN Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
-        WHERE r.Id = @RoomId;
+            SELECT
+                r.Id AS Id,
+                r.RoomName,
+                g.GameName,
+                u.Id AS IdHost,
+                u.WebUserName AS HostName,
+                r.Availability,
+                r.Localization,
+                r.CreatingDate,
+                r.RoomDescription,
+                r.SkillLevelRequired,
+                r.WhoCanJoin,
+                gi.ImageUrl AS MainGameImageUrl
+            FROM Rooms r
+            JOIN Games g ON r.IdGame = g.Id
+            JOIN AspNetUsers u ON r.IdHost = u.Id
+            LEFT JOIN Game_Image gi ON g.Id = gi.IdGame AND gi.IsMain = 1
+            WHERE r.Id = @RoomId;
         ";
 
         var result = await _data.LoadData<RoomModel, dynamic>(
@@ -163,15 +248,15 @@ else
     private async Task LoadParticipants()
     {
         string sql = @"
-        SELECT
-            u.Id,
-            u.WebUserName AS UserName,
-            u.Email,
-            u.Name,
-            u.SecondName
-        FROM Room_Participants rp
-        JOIN AspNetUsers u ON rp.IdUser = u.Id
-        WHERE rp.IdRoom = @RoomId;
+            SELECT
+                u.Id,
+                u.WebUserName AS UserName,
+                u.Email,
+                u.Name,
+                u.SecondName
+            FROM Room_Participants rp
+            JOIN AspNetUsers u ON rp.IdUser = u.Id
+            WHERE rp.IdRoom = @RoomId;
         ";
 
         participants = await _data.LoadData<UserModel, dynamic>(
