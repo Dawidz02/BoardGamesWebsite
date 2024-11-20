@@ -148,8 +148,11 @@
 
 <div class="search-container">
     <input type="text" placeholder="Search by username, name, or surname" @bind="searchTerm" @bind:event="oninput" class="search-input" />
-    <NavLink href="/friends/invitations" class="btn btn-primary">Invitations</NavLink>
+    <NavLink href="/friends/invitations" class="btn btn-primary">
+        Invitations (@invitationsCount)
+    </NavLink>
 </div>
+
 
 @if (friends == null)
 {
@@ -221,6 +224,7 @@ else
     bool showDeleteModal = false;
     string friendIdToDelete;
     string searchTerm = string.Empty;
+    int invitationsCount = 0; // Liczba zaproszeń
 
     protected override async Task OnInitializedAsync()
     {
@@ -229,6 +233,7 @@ else
 
         loggedInUserId = await GetLoggedInUserId();
         await LoadFriends();
+        await LoadInvitationsCount(); // Załaduj liczbę zaproszeń
     }
 
     private async Task LoadFriends()
@@ -253,6 +258,18 @@ else
         var result = await _data.LoadData<dynamic, dynamic>(sql, new { UserName = user.Identity?.Name }, _config.GetConnectionString("default"));
 
         return result?.FirstOrDefault()?.Id;
+    }
+
+    private async Task LoadInvitationsCount()
+    {
+        string sql = @"
+        select count(*)
+        from Friend_Invitations
+        where IdUser = @UserId";
+
+        var result = await _data.LoadData<int, dynamic>(sql, new { UserId = loggedInUserId }, _config.GetConnectionString("default"));
+        invitationsCount = result.FirstOrDefault(); // Pobiera pierwszą (i jedyną) wartość z listy
+        StateHasChanged(); // Odśwież widok po załadowaniu danych
     }
 
     private void ShowDeleteModal(string friendId)
@@ -290,13 +307,9 @@ else
             return (MarkupString)text;
         }
 
-        // Escape any special characters in the search query to use in regex
         var regexSearch = Regex.Escape(searchQuery);
-
-        // Use a case-insensitive regex to find all occurrences of the search term
         var regex = new Regex(regexSearch, RegexOptions.IgnoreCase);
 
-        // Replace all occurrences of the search term with a highlighted span
         var highlightedText = regex.Replace(text, match =>
         {
             return $"<span class='highlight'>{match.Value}</span>";
@@ -307,7 +320,6 @@ else
 
     private void NavigateToUserRooms(string userId)
     {
-        Console.WriteLine("Działa 1");
         NavigationManager.NavigateTo($"/friends/{userId}/rooms");
     }
 }
