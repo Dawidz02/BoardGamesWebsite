@@ -91,7 +91,7 @@
 
     .delete-btn {
         margin-top: 10px;
-        padding: 3px 8px;
+        padding: 3px 7px;
         border: none;
         color: white;
         cursor: pointer;
@@ -103,12 +103,12 @@
     .games-btn {
         margin-top: 10px;
         background-color: #28a745;
-        padding: 3px 8px;
+        padding: 3px 7px;
         border: none;
         color: white;
         cursor: pointer;
         border-radius: 5px;
-        font-size: 16px;
+        font-size: 14px;
     }
 
     .modal-backdrop {
@@ -181,6 +181,9 @@ else
                     </button>
                     <button class="games-btn" @onclick="() => NavigateToGameCatalog(friend.Id)">
                         View Games
+                    </button>
+                    <button class="games-btn" @onclick="() => NavigateToUserRooms(friend.Id)">
+                        View Rooms
                     </button>
                 </div>
             </div>
@@ -300,5 +303,11 @@ else
         });
 
         return (MarkupString)highlightedText;
+    }
+
+    private void NavigateToUserRooms(string userId)
+    {
+        Console.WriteLine("Działa 1");
+        NavigationManager.NavigateTo($"/friends/{userId}/rooms");
     }
 }

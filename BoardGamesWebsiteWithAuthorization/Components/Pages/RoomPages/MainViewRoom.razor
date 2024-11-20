@@ -151,7 +151,14 @@
         font-size: 0.9rem;
         font-weight: bold;
         transition: background-color 0.2s ease;
+        outline: none !important; /* Usuwa domyślną obwódkę focus */
     }
+
+        .btn:focus, .btn:active {
+            outline: none !important; /* Usuwa obwódkę focus */
+            box-shadow: none !important; /* Usuwa cień focus */
+        }
+
 
     .btn-primary {
         background-color: #007bff;
@@ -213,6 +220,14 @@
     <button class="btn mb-3 @(filterByReadyToPlay ? "btn-selected" : "btn-secondary")"
             @onclick="ToggleReadyToPlayFilter">
         Show My Ready to Play Games
+    </button>
+    <button class="btn mb-3 @(hideMyRooms ? "btn-selected" : "btn-secondary")"
+            @onclick="ToggleHideMyRooms">
+        Hide My Rooms
+    </button>
+    <button class="btn mb-3 @(showOnlyMyRooms ? "btn-selected" : "btn-secondary")"
+            @onclick="ToggleShowOnlyMyRooms">
+        Show Only My Rooms
     </button>
 </div>
 <div>
@@ -281,20 +296,20 @@ else
                         }
                         else
                         {
-                            <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">More</button>
+                        <button class="btn btn-primary" @onclick="() => NavigateToRoom(room.Id)">More</button>
 
-                            @if (room.IsUserInRoom)
-                            {
-                                <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave</button>
-                            }
-                            else
-                            {
-                                <button class="btn @(room.Availability && room.WhoCanJoin ? "btn-join" : "btn-disabled")"
-                                        @onclick="(room.Availability && room.WhoCanJoin) ? (() => JoinRoom(room.Id)) : null"
-                                        disabled="@(room.Availability && room.WhoCanJoin ? false : true)">
-                                    Join
-                                </button>
-                            }
+                        @if (room.IsUserInRoom)
+                        {
+                            <button class="btn btn-danger" @onclick="() => LeaveRoom(room.Id)">Leave</button>
+                        }
+                        else
+                        {
+                            <button class="btn @(room.Availability && room.WhoCanJoin ? "btn-join" : "btn-disabled")"
+                                    @onclick="(room.Availability && room.WhoCanJoin) ? (() => JoinRoom(room.Id)) : null"
+                                    disabled="@(room.Availability && room.WhoCanJoin ? false : true)">
+                                Join
+                            </button>
+                        }
                         }
                     </div>
                 </div>
@@ -338,6 +353,9 @@ else
     private string userId;
     private bool showDeleteModal = false; // Kontroluje widoczność modala
     private int roomIdToDelete; // Przechowuje ID pokoju do usunięcia
+    private bool hideMyRooms = false; // Czy ukryć pokoje użytkownika
+    private bool showOnlyMyRooms = false; // Czy pokazać tylko pokoje użytkownika
+
 
 
     private string searchQuery
@@ -460,6 +478,16 @@ LEFT JOIN
             filteredRooms = filteredRooms.Where(r => readyToPlayGameIds.Contains(r.IdGame));
         }
 
+        if (hideMyRooms)
+        {
+            filteredRooms = filteredRooms.Where(r => r.IdHost != userId);
+        }
+
+        if (showOnlyMyRooms)
+        {
+            filteredRooms = filteredRooms.Where(r => r.IdHost == userId);
+        }
+
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
             var query = searchQuery.ToLower();
@@ -472,6 +500,7 @@ LEFT JOIN
         rooms = filteredRooms.ToList();
         StateHasChanged(); // Odświeżenie UI
     }
+
 
 
     private async Task<bool> IsUserInRoom(int roomId)
@@ -584,7 +613,6 @@ LEFT JOIN
         }
     }
 
-
     private void ToggleUserGamesFilter()
     {
         filterByUserGames = !filterByUserGames;
@@ -595,6 +623,32 @@ LEFT JOIN
     private void ToggleReadyToPlayFilter()
     {
         filterByReadyToPlay = !filterByReadyToPlay;
+        FilterRooms();
+    }
+
+    private void ToggleHideMyRooms()
+    {
+        hideMyRooms = !hideMyRooms;
+
+        // Jeśli aktywowano "Hide My Rooms", wyłącz "Show Only My Rooms"
+        if (hideMyRooms)
+        {
+            showOnlyMyRooms = false;
+        }
+
+        FilterRooms();
+    }
+
+    private void ToggleShowOnlyMyRooms()
+    {
+        showOnlyMyRooms = !showOnlyMyRooms;
+
+        // Jeśli aktywowano "Show Only My Rooms", wyłącz "Hide My Rooms"
+        if (showOnlyMyRooms)
+        {
+            hideMyRooms = false;
+        }
+
         FilterRooms();
     }
 
