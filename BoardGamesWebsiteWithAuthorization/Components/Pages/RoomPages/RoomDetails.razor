@@ -155,6 +155,11 @@ else
                                     <span>@friend.Name</span>
                                     <span>@friend.SecondName</span>
                                 </div>
+                                <button class="btn btn-primary"
+                                        @onclick="() => InviteFriend(friend.Id)"
+                                        disabled="@invitedOrParticipatingUserIds.Contains(friend.Id)">
+                                    @(invitedOrParticipatingUserIds.Contains(friend.Id) ? "Already Invited/Joined" : "Invite")
+                                </button>
                             </div>
                         }
                     </div>
@@ -171,6 +176,7 @@ else
     private List<UserModel> participants = new List<UserModel>();
     private List<UserModel> friends = new List<UserModel>(); // Znajomi
     private HashSet<string> friendIds = new HashSet<string>();
+    private HashSet<string> invitedOrParticipatingUserIds = new HashSet<string>(); // Id użytkowników z zaproszeniami lub w pokoju
     private string loggedInUserId;
 
     protected override async Task OnInitializedAsync()
@@ -179,6 +185,7 @@ else
         await LoadFriends();
         await LoadRoomDetails();
         await LoadParticipants();
+        await LoadInvitedOrParticipatingUsers();
     }
 
     private async Task<string> GetLoggedInUserId()
@@ -264,6 +271,48 @@ else
             new { RoomId = roomId },
             _config.GetConnectionString("default")
         );
+    }
+
+    private async Task LoadInvitedOrParticipatingUsers()
+    {
+        string sql = @"
+            SELECT DISTINCT IdUser
+            FROM Room_Invitations
+            WHERE IdRoom = @RoomId
+              AND Status = 'Waiting'
+            UNION
+            SELECT DISTINCT IdUser
+            FROM Room_Participants
+            WHERE IdRoom = @RoomId;
+        ";
+
+        var result = await _data.LoadData<string, dynamic>(
+            sql,
+            new { RoomId = roomId },
+            _config.GetConnectionString("default")
+        );
+
+        invitedOrParticipatingUserIds = result.ToHashSet();
+    }
+
+    private async Task InviteFriend(string friendId)
+    {
+        var invitation = new
+        {
+            IdRoom = roomId,
+            IdUser = friendId,
+            InvitedBy = loggedInUserId,
+            Status = "Waiting",
+            SendingDate = DateTime.Now
+        };
+
+        string sql = @"
+        INSERT INTO Room_Invitations (IdRoom, IdUser, InvitedBy, Status, SendingDate)
+        VALUES (@IdRoom, @IdUser, @InvitedBy, @Status, @SendingDate);
+        ";
+
+        await _data.SaveData(sql, invitation, _config.GetConnectionString("default"));
+        await LoadInvitedOrParticipatingUsers(); // Odśwież dane po zaproszeniu
     }
 
     private void GoBack()

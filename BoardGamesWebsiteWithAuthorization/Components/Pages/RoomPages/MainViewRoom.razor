@@ -208,9 +208,14 @@
 
 <h3>Rooms List</h3>
 
-<a href="/create-room" class="btn btn-secondary mb-3">
-    <i class="fas fa-arrow-left"></i> New Room
-</a>
+<div>
+    <a href="/create-room" class="btn btn-secondary mb-3">
+        <i class="fas fa-plus"></i> New Room
+    </a>
+    <a href="/room-invitations" class="btn btn-secondary mb-3">
+        <i class="fas fa-envelope"></i> Invitations (@pendingInvitationsCount)
+    </a>
+</div>
 
 <div>
     <button class="btn mb-3 @(filterByUserGames ? "btn-selected" : "btn-secondary")"
@@ -361,6 +366,7 @@ else
     private bool hideMyRooms = false; // Czy ukryć pokoje użytkownika
     private bool showOnlyMyRooms = false; // Czy pokazać tylko pokoje użytkownika
     private bool showParticipantRooms = false; // Czy pokazywać tylko pokoje, w których użytkownik jest uczestnikiem
+    private int pendingInvitationsCount = 0; // Liczba zaproszeń
 
     private string searchQuery
     {
@@ -379,6 +385,7 @@ else
         userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         await LoadUserGames();
         await LoadRooms();
+        await LoadPendingInvitationsCount(); // Załaduj liczbę zaproszeń
     }
 
     private async Task LoadRooms()
@@ -618,6 +625,24 @@ LEFT JOIN
         {
             showDeleteModal = false; // Zamknij modal po zakończeniu operacji
         }
+    }
+
+    private async Task LoadPendingInvitationsCount()
+    {
+        string sql = @"
+            SELECT COUNT(*)
+            FROM Room_Invitations
+            WHERE IdUser = @UserId AND Status = 'Waiting';
+        ";
+
+        var result = await _data.LoadData<int, dynamic>(
+            sql,
+            new { UserId = userId },
+            _config.GetConnectionString("default")
+        );
+
+        pendingInvitationsCount = result.FirstOrDefault(); // Pobierz liczbę zaproszeń
+        StateHasChanged(); // Odśwież widok
     }
 
     private void ToggleUserGamesFilter()

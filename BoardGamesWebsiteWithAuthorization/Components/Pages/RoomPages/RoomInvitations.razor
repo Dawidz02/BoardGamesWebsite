@@ -1,0 +1,179 @@
+﻿@page "/room-invitations"
+@rendermode InteractiveServer
+
+@using BoardGamesWebsiteWithAuthorization.Models
+@using DataLibrary
+@using Microsoft.EntityFrameworkCore.Metadata.Internal
+@inject IDataAccess _data
+@inject IConfiguration _config
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<style>
+    .invitations-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 20px;
+    }
+
+    .invitation-box {
+        width: 80%;
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+        .invitation-box h4 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .invitation-box p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #777;
+        }
+
+    .invitation-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+    }
+</style>
+
+<h3>Your Invitations</h3>
+
+<div>
+    <a href="/rooms" class="btn btn-secondary mb-3">
+        <i class="fas fa-plus"></i> Back
+    </a>
+</div>
+
+<div class="invitations-container">
+    @if (invitations == null)
+    {
+        <p><em>Loading your invitations...</em></p>
+    }
+    else if (!invitations.Any())
+    {
+        <p>No invitations available.</p>
+    }
+    else
+    {
+        @foreach (var invitation in invitations)
+        {
+            <div class="invitation-box">
+                <h4>@(invitation.Room?.RoomName ?? "Unknown Room")</h4>
+                <p><strong>Game:</strong> @(invitation.Room?.GameName ?? "Unknown Game")</p>
+                <p><strong>Host:</strong> @(invitation.InvitedByUser?.WebUserName ?? "Unknown Host")</p>
+                <p><strong>Status:</strong> @invitation.Status</p>
+                <p><strong>Invitation Date:</strong> @invitation.SendingDate.ToString("yyyy-MM-dd")</p>
+                <div class="invitation-actions">
+                    @if (invitation.Status == "Waiting")
+                    {
+                        <button class="btn btn-success" @onclick="() => AcceptInvitation(invitation.Id)">Accept</button>
+                        <button class="btn btn-danger" @onclick="() => DeclineInvitation(invitation.Id)">Decline</button>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<RoomInvitationModel> invitations = new List<RoomInvitationModel>();
+    private string loggedInUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loggedInUserId = await GetLoggedInUserId();
+        await LoadInvitations();
+    }
+
+    private async Task<string> GetLoggedInUserId()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private async Task LoadInvitations()
+    {
+        string sql = @"
+           SELECT
+    ri.Id,
+    ri.IdRoom,
+    ri.IdUser,
+    ri.InvitedBy,
+    ri.Status,
+    ri.SendingDate,
+    r.RoomName,
+    g.GameName,
+    u.WebUserName AS InvitedByUserName
+FROM Room_Invitations ri
+JOIN Rooms r ON ri.IdRoom = r.Id
+JOIN Games g ON r.IdGame = g.Id
+LEFT JOIN AspNetUsers u ON ri.InvitedBy = u.Id
+WHERE ri.IdUser = @UserId;
+        ";
+
+        invitations = await _data.LoadData<RoomInvitationModel, dynamic>(
+            sql,
+            new { UserId = loggedInUserId },
+            _config.GetConnectionString("default")
+        );
+    }
+
+    private async Task AcceptInvitation(int invitationId)
+    {
+        // Znajdź odpowiednie zaproszenie
+        var invitation = invitations.FirstOrDefault(i => i.Id == invitationId);
+        if (invitation == null)
+        {
+            return; // Jeśli zaproszenie nie istnieje, przerwij
+        }
+
+        // Dodaj użytkownika do uczestników pokoju
+        string addParticipantSql = @"
+            INSERT INTO Room_Participants (IdRoom, IdUser)
+            VALUES (@IdRoom, @IdUser);
+        ";
+        await _data.SaveData(addParticipantSql,
+            new { IdRoom = invitation.IdRoom, IdUser = loggedInUserId },
+            _config.GetConnectionString("default"));
+
+        // Usuń zaproszenie po akceptacji
+        string deleteInvitationSql = @"
+            DELETE FROM Room_Invitations
+            WHERE Id = @InvitationId;
+        ";
+        await _data.SaveData(deleteInvitationSql,
+            new { InvitationId = invitationId },
+            _config.GetConnectionString("default"));
+
+        // Odśwież listę zaproszeń
+        invitations.Remove(invitation);
+    }
+
+    private async Task DeclineInvitation(int invitationId)
+    {
+        // Usuń zaproszenie po odrzuceniu
+        string deleteInvitationSql = @"
+            DELETE FROM Room_Invitations
+            WHERE Id = @InvitationId;
+        ";
+        await _data.SaveData(deleteInvitationSql,
+            new { InvitationId = invitationId },
+            _config.GetConnectionString("default"));
+
+        // Usuń zaproszenie z listy lokalnie
+        var invitation = invitations.FirstOrDefault(i => i.Id == invitationId);
+        if (invitation != null)
+        {
+            invitations.Remove(invitation);
+        }
+    }
+}
+
