@@ -578,6 +578,12 @@ LEFT JOIN
     {
         try
         {
+            // Usuń wszystkie zaproszenia dotyczące pokoju
+            string sqlDeleteInvitations = @"
+        DELETE FROM Room_Invitations WHERE IdRoom = @IdRoom;
+        ";
+            await _data.SaveData(sqlDeleteInvitations, new { IdRoom = roomId }, _config.GetConnectionString("default"));
+
             // Usuń wszystkich uczestników z pokoju
             string sqlDeleteParticipants = @"
         DELETE FROM Room_Participants WHERE IdRoom = @IdRoom;
@@ -615,6 +621,11 @@ LEFT JOIN
     {
         try
         {
+            // Usuń wszystkie zaproszenia dotyczące pokoju
+            string sqlDeleteInvitations = @"
+        DELETE FROM Room_Invitations WHERE IdRoom = @IdRoom;
+        ";
+            await _data.SaveData(sqlDeleteInvitations, new { IdRoom = roomIdToDelete }, _config.GetConnectionString("default"));
             // Usuń wszystkich uczestników z pokoju
             string sqlDeleteParticipants = @"
         DELETE FROM Room_Participants WHERE IdRoom = @IdRoom;

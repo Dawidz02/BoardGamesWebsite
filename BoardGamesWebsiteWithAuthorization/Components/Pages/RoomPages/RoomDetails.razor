@@ -164,11 +164,24 @@ else
                                     <span>@friend.Name</span>
                                     <span>@friend.SecondName</span>
                                 </div>
-                                <button class="btn btn-primary"
-                                        @onclick="() => InviteFriend(friend.Id)"
-                                        disabled="@invitedOrParticipatingUserIds.Contains(friend.Id)">
-                                    @(invitedOrParticipatingUserIds.Contains(friend.Id) ? "Already Invited/Joined" : "Invite")
-                                </button>
+                                @if (invitedOrParticipatingUserIds.Contains(friend.Id) && !participants.Any(p => p.Id == friend.Id))
+                                {
+                                    <!-- Przy zaproszeniu oczekującym na akceptację -->
+                                    <div style="display: flex; gap: 5px;">
+                                        <button class="btn btn-primary" disabled>Already Invited</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => CancelInvitation(friend.Id)">
+                                            &times;
+                                        </button>
+                                    </div>
+                                }
+                                else if (invitedOrParticipatingUserIds.Contains(friend.Id))
+                                {
+                                    <button class="btn btn-primary" disabled>Already Joined</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-primary" @onclick="() => InviteFriend(friend.Id)">Invite</button>
+                                }
                             </div>
                         }
                     </div>
@@ -285,15 +298,14 @@ else
     private async Task LoadInvitedOrParticipatingUsers()
     {
         string sql = @"
-            SELECT DISTINCT IdUser
-            FROM Room_Invitations
-            WHERE IdRoom = @RoomId
-              AND Status = 'Waiting'
-            UNION
-            SELECT DISTINCT IdUser
-            FROM Room_Participants
-            WHERE IdRoom = @RoomId;
-        ";
+        SELECT DISTINCT IdUser
+        FROM Room_Invitations
+        WHERE IdRoom = @RoomId AND Status = 'Waiting'
+        UNION
+        SELECT DISTINCT IdUser
+        FROM Room_Participants
+        WHERE IdRoom = @RoomId;
+    ";
 
         var result = await _data.LoadData<string, dynamic>(
             sql,
@@ -335,12 +347,36 @@ else
 
             await _data.SaveData(sql, new { RoomId = roomId, ParticipantId = participantId }, _config.GetConnectionString("default"));
 
-            // Odśwież listę uczestników po usunięciu
             await LoadParticipants();
+            await LoadInvitedOrParticipatingUsers();
+
+            StateHasChanged(); 
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error removing participant: {ex.Message}");
+        }
+    }
+
+    private async Task CancelInvitation(string userId)
+    {
+        try
+        {
+            string sql = @"
+            DELETE FROM Room_Invitations
+            WHERE IdRoom = @RoomId AND IdUser = @UserId AND Status = 'Waiting';
+        ";
+
+            await _data.SaveData(sql, new { RoomId = roomId, UserId = userId }, _config.GetConnectionString("default"));
+
+            // Odśwież listę znajomych i zaproszeń
+            await LoadInvitedOrParticipatingUsers();
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cancelling invitation: {ex.Message}");
         }
     }
 
