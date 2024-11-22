@@ -82,6 +82,12 @@
         pointer-events: none;
     }
 
+    .participants-number {
+        font-size: 0.9rem;
+        margin: 0.25rem 0;
+        color: #333;
+    }
+
     .profile-image-wrapper {
         position: relative;
         width: 140px;
@@ -292,6 +298,9 @@ else
                     </p>
                     <p class="host"><strong>Host:</strong> @room.HostName</p>
                     <p class="join-type"><strong>Who Can Join:</strong> @(room.WhoCanJoin ? "Anyone" : "Invite Only")</p>
+                    <p class="participants-number">
+                        <strong>Participants:</strong> @room.ParticipantsCount
+                    </p>
                     <p class="friends-number">
                         <strong>Friends in Room:</strong> @room.FriendsCount
                     </p>
@@ -408,11 +417,16 @@ SELECT
     (
         SELECT COUNT(*)
         FROM Room_Participants rp
+        WHERE rp.IdRoom = r.Id
+    ) + 1 AS ParticipantsCount, -- Zlicz uczestników i dodaj hosta
+    (
+        SELECT COUNT(*)
+        FROM Room_Participants rp
         INNER JOIN Friends f
             ON (f.IdUser1 = rp.IdUser OR f.IdUser2 = rp.IdUser)
         WHERE rp.IdRoom = r.Id
           AND (f.IdUser1 = @UserId OR f.IdUser2 = @UserId)
-          AND rp.IdUser != @UserId -- Exclude the current user
+          AND rp.IdUser != @UserId
     ) +
     (
         CASE

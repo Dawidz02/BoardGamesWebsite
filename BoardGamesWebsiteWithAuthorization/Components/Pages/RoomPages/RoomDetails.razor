@@ -114,23 +114,32 @@ else
             <p><strong>Description:</strong> @room.RoomDescription</p>
 
             <h4>Participants</h4>
+            <ul>
+                <li style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">
+                    @room.HostName (Host)
+                </li>
+            </ul>
             @if (participants == null || !participants.Any())
             {
-                <p>No participants yet.</p>
             }
             else
             {
                 <ul>
-                    <li style="color: @(friendIds.Contains(room.IdHost) ? "green" : "black")">@room.HostName</li>
                     @foreach (var participant in participants)
                     {
                         <li style="color: @(friendIds.Contains(participant.Id) ? "green" : "black")">
                             @participant.UserName (@participant.Name @participant.SecondName)
+                            @if (room.IdHost == loggedInUserId)
+                            {
+                                <button class="btn btn-sm btn-danger" style="margin-left: 10px;"
+                                        @onclick="() => RemoveParticipant(participant.Id)">
+                                    &times;
+                                </button>
+                            }
                         </li>
                     }
                 </ul>
             }
-
             <button class="btn btn-secondary" @onclick="GoBack">Back to Rooms</button>
         </div>
 
@@ -313,6 +322,26 @@ else
 
         await _data.SaveData(sql, invitation, _config.GetConnectionString("default"));
         await LoadInvitedOrParticipatingUsers(); // Odśwież dane po zaproszeniu
+    }
+
+    private async Task RemoveParticipant(string participantId)
+    {
+        try
+        {
+            string sql = @"
+        DELETE FROM Room_Participants
+        WHERE IdRoom = @RoomId AND IdUser = @ParticipantId;
+        ";
+
+            await _data.SaveData(sql, new { RoomId = roomId, ParticipantId = participantId }, _config.GetConnectionString("default"));
+
+            // Odśwież listę uczestników po usunięciu
+            await LoadParticipants();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing participant: {ex.Message}");
+        }
     }
 
     private void GoBack()

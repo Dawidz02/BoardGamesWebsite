@@ -24,6 +24,7 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public bool IsAnyoneSelected { get; set; }  // Tracks "Anyone"
         public bool IsInviteOnlySelected { get; set; }  // Tracks "Invite Only"
         public int FriendsCount { get; set; } // New Property
+        public int ParticipantsCount { get; set; } // Nowe pole
         public ICollection<RoomParticipantModel> RoomParticipants { get; set; }
         public ICollection<RoomInvitationModel> RoomInvitations { get; set; }
     }
