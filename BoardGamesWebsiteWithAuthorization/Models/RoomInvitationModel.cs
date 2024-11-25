@@ -13,5 +13,9 @@ namespace BoardGamesWebsiteWithAuthorization.Models
         public UserModel InvitedByUser { get; set; }
         public string Status { get; set; } = "Waiting"; // ENUM('Waiting', 'Accepted', 'Declined')
         public DateTime SendingDate { get; set; }
+
+        public string RoomName { get; set; }
+        public string GameName { get; set; }
+        public string InvitedByUserName { get; set; }
     }
 }

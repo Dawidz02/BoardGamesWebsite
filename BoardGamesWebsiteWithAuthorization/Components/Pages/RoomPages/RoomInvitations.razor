@@ -66,9 +66,9 @@
         @foreach (var invitation in invitations)
         {
             <div class="invitation-box">
-                <h4>@(invitation.Room?.RoomName ?? "Unknown Room")</h4>
-                <p><strong>Game:</strong> @(invitation.Room?.GameName ?? "Unknown Game")</p>
-                <p><strong>Host:</strong> @(invitation.InvitedByUser?.WebUserName ?? "Unknown Host")</p>
+                <h4>@(invitation.RoomName ?? "Unknown Room")</h4>
+                <p><strong>Game:</strong> @(invitation.GameName ?? "Unknown Game")</p>
+                <p><strong>Host:</strong> @(invitation.InvitedByUserName ?? "Unknown Host")</p>
                 <p><strong>Status:</strong> @invitation.Status</p>
                 <p><strong>Invitation Date:</strong> @invitation.SendingDate.ToString("yyyy-MM-dd")</p>
                 <div class="invitation-actions">
@@ -102,22 +102,22 @@
     private async Task LoadInvitations()
     {
         string sql = @"
-           SELECT
-    ri.Id,
-    ri.IdRoom,
-    ri.IdUser,
-    ri.InvitedBy,
-    ri.Status,
-    ri.SendingDate,
-    r.RoomName,
-    g.GameName,
-    u.WebUserName AS InvitedByUserName
-FROM Room_Invitations ri
-JOIN Rooms r ON ri.IdRoom = r.Id
-JOIN Games g ON r.IdGame = g.Id
-LEFT JOIN AspNetUsers u ON ri.InvitedBy = u.Id
-WHERE ri.IdUser = @UserId;
-        ";
+        SELECT
+            ri.Id AS Id,
+            ri.IdRoom AS IdRoom,
+            ri.IdUser AS IdUser,
+            ri.InvitedBy AS InvitedBy,
+            ri.Status AS Status,
+            ri.SendingDate AS SendingDate,
+            r.RoomName AS RoomName,
+            g.GameName AS GameName,
+            u.WebUserName AS InvitedByUserName
+        FROM Room_Invitations ri
+        LEFT JOIN Rooms r ON ri.IdRoom = r.Id
+        LEFT JOIN Games g ON r.IdGame = g.Id
+        LEFT JOIN AspNetUsers u ON ri.InvitedBy = u.Id
+        WHERE ri.IdUser = @UserId;
+    ";
 
         invitations = await _data.LoadData<RoomInvitationModel, dynamic>(
             sql,

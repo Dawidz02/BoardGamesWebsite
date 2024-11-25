@@ -330,10 +330,10 @@ else
         string sql = @"
         INSERT INTO Room_Invitations (IdRoom, IdUser, InvitedBy, Status, SendingDate)
         VALUES (@IdRoom, @IdUser, @InvitedBy, @Status, @SendingDate);
-        ";
+    ";
 
         await _data.SaveData(sql, invitation, _config.GetConnectionString("default"));
-        await LoadInvitedOrParticipatingUsers(); // Odśwież dane po zaproszeniu
+        await LoadInvitedOrParticipatingUsers();
     }
 
     private async Task RemoveParticipant(string participantId)

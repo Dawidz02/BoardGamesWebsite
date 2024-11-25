@@ -558,6 +558,14 @@ LEFT JOIN
         ";
 
         await _data.SaveData(sql, participant, _config.GetConnectionString("default"));
+
+        string sqlDeleteInvitation = @"
+        DELETE FROM Room_Invitations
+        WHERE IdRoom = @IdRoom AND IdUser = @IdUser;
+        ";
+
+        await _data.SaveData(sqlDeleteInvitation, new { IdRoom = roomId, IdUser = userId }, _config.GetConnectionString("default"));
+
         await LoadRooms();
     }
 
