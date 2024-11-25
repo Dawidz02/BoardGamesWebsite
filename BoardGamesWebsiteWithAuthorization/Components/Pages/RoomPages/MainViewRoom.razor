@@ -586,21 +586,27 @@ LEFT JOIN
     {
         try
         {
+            // Usuń wszystkie wiadomości z pokoju
+            string sqlDeleteMessages = @"
+            DELETE FROM Room_Messages WHERE IdRoom = @IdRoom;
+        ";
+            await _data.SaveData(sqlDeleteMessages, new { IdRoom = roomId }, _config.GetConnectionString("default"));
+
             // Usuń wszystkie zaproszenia dotyczące pokoju
             string sqlDeleteInvitations = @"
-        DELETE FROM Room_Invitations WHERE IdRoom = @IdRoom;
+            DELETE FROM Room_Invitations WHERE IdRoom = @IdRoom;
         ";
             await _data.SaveData(sqlDeleteInvitations, new { IdRoom = roomId }, _config.GetConnectionString("default"));
 
             // Usuń wszystkich uczestników z pokoju
             string sqlDeleteParticipants = @"
-        DELETE FROM Room_Participants WHERE IdRoom = @IdRoom;
+            DELETE FROM Room_Participants WHERE IdRoom = @IdRoom;
         ";
             await _data.SaveData(sqlDeleteParticipants, new { IdRoom = roomId }, _config.GetConnectionString("default"));
 
             // Usuń sam pokój
             string sqlDeleteRoom = @"
-        DELETE FROM Rooms WHERE Id = @IdRoom;
+            DELETE FROM Rooms WHERE Id = @IdRoom;
         ";
             await _data.SaveData(sqlDeleteRoom, new { IdRoom = roomId }, _config.GetConnectionString("default"));
 
@@ -629,6 +635,12 @@ LEFT JOIN
     {
         try
         {
+            // Usuń wszystkie wiadomości z pokoju
+            string sqlDeleteMessages = @"
+            DELETE FROM Room_Messages WHERE IdRoom = @IdRoom;
+            ";
+            await _data.SaveData(sqlDeleteMessages, new { IdRoom = roomIdToDelete }, _config.GetConnectionString("default"));
+
             // Usuń wszystkie zaproszenia dotyczące pokoju
             string sqlDeleteInvitations = @"
         DELETE FROM Room_Invitations WHERE IdRoom = @IdRoom;
