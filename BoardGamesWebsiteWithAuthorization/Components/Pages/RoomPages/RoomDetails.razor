@@ -287,6 +287,7 @@ else
         await LoadParticipants();
         await LoadInvitedOrParticipatingUsers();
         await LoadMessages();
+        _ = PollForMessages();
     }
 
     private async Task<string> GetLoggedInUserId()
@@ -505,6 +506,16 @@ else
 
             newMessage = "";
             await LoadMessages();
+        }
+    }
+
+    private async Task PollForMessages()
+    {
+        while (true)
+        {
+            await LoadMessages(); // Pobierz nowe wiadomości z serwera
+            StateHasChanged();    // Odśwież stan komponentu
+            await Task.Delay(3000); // Odczekaj 5 sekund przed kolejnym zapytaniem
         }
     }
 
