@@ -129,7 +129,7 @@ else
     private async Task LoadInvitations()
     {
         string sql = @"
-            select fi.Id, fi.InvitedBy, fi.SendingDate, u.UserName as InvitedByUserName
+            select fi.Id, fi.InvitedBy, fi.SendingDate, u.WebUserName as InvitedByUserName
             from Friend_Invitations fi
             join aspnetusers u on fi.InvitedBy = u.Id
             where fi.IdUser = @UserId";

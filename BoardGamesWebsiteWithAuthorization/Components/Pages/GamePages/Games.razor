@@ -416,19 +416,16 @@ else
     }
 
 
-    // Show categories modal
     private void ShowCategoriesModal()
     {
         showCategoriesModal = true;
     }
 
-    // Close categories modal
     private void CloseCategoriesModal()
     {
         showCategoriesModal = false;
     }
 
-    // Update selected categories
     private void UpdateSelectedCategories(ChangeEventArgs e, string category)
     {
         if ((bool)e.Value)
@@ -444,45 +441,38 @@ else
         }
     }
 
-    // Show delete confirmation modal
     private void ShowDeleteModal(int gameId)
     {
         gameIdToDelete = gameId;
         showDeleteModal = true;
     }
 
-    // Close delete modal
     private void CloseDeleteModal()
     {
         showDeleteModal = false;
     }
 
-    // Confirm delete of game, its images, and DLC relationships
     private async Task ConfirmDelete()
     {
-        // First, delete any DLC relationships where this game is a main game
         string deleteDlcSqlAsMain = "DELETE FROM DLC WHERE MainGameId = @IdGame";
         await _data.SaveData(deleteDlcSqlAsMain, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
 
-        // Also delete any DLC relationships where this game is a DLC
         string deleteDlcSqlAsDlc = "DELETE FROM DLC WHERE DLCGameId = @IdGame";
         await _data.SaveData(deleteDlcSqlAsDlc, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
 
-        // Now delete the game images and categories
         string deleteCategoriesSql = "DELETE FROM Game_Category WHERE IdGame = @IdGame";
         await _data.SaveData(deleteCategoriesSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
 
         string deleteImagesSql = "DELETE FROM Game_Image WHERE IdGame = @IdGame";
         await _data.SaveData(deleteImagesSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
 
-        // Finally, delete the game itself
         string deleteGameSql = "DELETE FROM games WHERE Id = @IdGame";
         await _data.SaveData(deleteGameSql, new { IdGame = gameIdToDelete }, _config.GetConnectionString("default"));
 
         // Update the local games list
-        games = games.Where(g => g.Id != gameIdToDelete).ToList(); // Remove from local list
-        showDeleteModal = false; // Close the modal
-        StateHasChanged(); // Refresh UI
+        games = games.Where(g => g.Id != gameIdToDelete).ToList(); 
+        showDeleteModal = false; 
+        StateHasChanged(); 
     }
     
 
@@ -494,7 +484,6 @@ else
 
         if (!string.IsNullOrEmpty(userId))
         {
-            // Sprawdź, czy gra już została dodana przez tego użytkownika
             string checkSql = @"
         SELECT COUNT(*) FROM User_Game
         WHERE IdUser = @IdUser AND IdGame = @IdGame";
@@ -503,15 +492,13 @@ else
 
             if (existingGameCountList.FirstOrDefault() == 0)
             {
-                // Dodaj do bazy danych
                 string insertSql = @"
             INSERT INTO User_Game (IdUser, IdGame)
             VALUES (@IdUser, @IdGame)";
 
                 await _data.SaveData(insertSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
 
-                // Dodaj ID gry do listy posiadanych gier
-                ownedGameIds.Add(gameId); // Dodaj ID gry do ownedGameIds
+                ownedGameIds.Add(gameId); 
 
                 feedbackMessage = "Gra dodana do twojej kolekcji!";
             }
@@ -520,18 +507,15 @@ else
                 feedbackMessage = "Już posiadasz tę grę.";
             }
 
-            // Ustaw widoczność dymka
             isFeedbackVisible = true;
 
-            // Uruchom timer do ukrycia dymka po 3 sekundach
             _ = Task.Delay(3000).ContinueWith(_ =>
             {
                 isFeedbackVisible = false;
-                InvokeAsync(StateHasChanged); // Odśwież interfejs
+                InvokeAsync(StateHasChanged);
             });
 
-            // Zaktualizuj UI
-            StateHasChanged(); // Odśwież komponent, aby zmiany były widoczne natychmiast
+            StateHasChanged();
         }
     }
 
@@ -543,36 +527,28 @@ else
 
         if (!string.IsNullOrEmpty(userId))
         {
-            // Usuń grę z bazy danych
             string deleteSql = @"
         DELETE FROM User_Game
         WHERE IdUser = @IdUser AND IdGame = @IdGame";
 
             await _data.SaveData(deleteSql, new { IdUser = userId, IdGame = gameId }, _config.GetConnectionString("default"));
 
-            // Usuń ID gry z listy ownedGameIds
-            ownedGameIds.Remove(gameId); // Usuń ID gry z ownedGameIds
+            ownedGameIds.Remove(gameId); 
 
-            // Ustaw wiadomość o powodzeniu
             feedbackMessage = "Gra została usunięta z twojej kolekcji.";
 
-            // Ustaw widoczność dymka
             isFeedbackVisible = true;
 
-            // Uruchom timer do ukrycia dymka po 3 sekundach
             _ = Task.Delay(3000).ContinueWith(_ =>
             {
                 isFeedbackVisible = false;
-                InvokeAsync(StateHasChanged); // Odśwież interfejs
+                InvokeAsync(StateHasChanged); 
             });
 
-            // Zaktualizuj UI
-            StateHasChanged(); // Odśwież komponent, aby zmiany były widoczne natychmiast
+            StateHasChanged(); 
         }
     }
 
-
-    // Filter and sort games based on search query and selected categories
     private IEnumerable<GameModel> FilteredAndSortedGames
     {
         get
@@ -582,7 +558,6 @@ else
                             g.Author.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                             g.Publisher.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
 
-            // Filter by selected categories
             if (selectedCategories.Any())
             {
                 filteredGames = filteredGames.Where(g =>
@@ -591,10 +566,9 @@ else
                 );
             }
 
-            // Add the isOwnedByUser property for styling
             foreach (var game in filteredGames)
             {
-                game.IsOwnedByUser = IsGameOwnedByUser(game.Id); // Ustaw flagę isOwnedByUser
+                game.IsOwnedByUser = IsGameOwnedByUser(game.Id); 
             }
 
             if (!string.IsNullOrEmpty(currentSortProperty) && currentSortProperty != nameof(GameModel.Categories))
@@ -611,7 +585,6 @@ else
         }
     }
 
-    // Get selected categories as a comma-separated string
     private string GetSelectedCategoriesText()
     {
         return selectedCategories.Count > 0 ? string.Join(", ", selectedCategories) : "No categories selected";
@@ -630,21 +603,20 @@ else
             sortClickCount++;
             if (sortClickCount == 3)
             {
-                // Reset sorting state after the third click
                 currentSortProperty = null;
-                isAscending = true; // Resetting the order to default
-                sortClickCount = 0; // Reset click count
+                isAscending = true; 
+                sortClickCount = 0;
             }
             else
             {
-                isAscending = !isAscending; // Toggle sort order
+                isAscending = !isAscending; 
             }
         }
         else
         {
             currentSortProperty = property;
-            isAscending = true; // Default to ascending
-            sortClickCount = 1; // Reset click count to 1 for the new property
+            isAscending = true; 
+            sortClickCount = 1; 
         }
     }
 
@@ -654,13 +626,11 @@ else
     }
 
 
-    // Get CSS class for sorting columns
     private string GetColumnClass(string property)
     {
         return currentSortProperty == property ? (isAscending ? "sorted-asc" : "sorted-desc") : string.Empty;
     }
 
-    // Funkcja podświetlania tekstu w wynikach wyszukiwania
     private MarkupString HighlightText(string text, string searchQuery)
     {
         if (string.IsNullOrEmpty(searchQuery) || string.IsNullOrEmpty(text))
@@ -675,9 +645,8 @@ else
             if (queryIndex < searchQuery.Length &&
                 char.ToLower(text[i]) == char.ToLower(searchQuery[queryIndex]))
             {
-                // Jeśli litera pasuje do wyszukiwanego hasła, pogrub ją i podświetl
                 highlightedText.Append($"<span class='highlight'>{text[i]}</span>");
-                queryIndex++; // Przejdź do kolejnej litery wyszukiwanego hasła
+                queryIndex++;
             }
             else
             {
@@ -696,22 +665,19 @@ else
 
     private void ToggleSortOptions()
     {
-        showSortOptions = !showSortOptions; // Toggle the visibility
+        showSortOptions = !showSortOptions;
     }
 
-    // Skracanie description
     private string GetShortDescription(string description, int maxLength = 150)
     {
         if (string.IsNullOrEmpty(description) || description.Length <= maxLength)
         {
-            return description; // Jeśli opis jest krótszy lub równy maxLength, zwróć go w całości
+            return description;
         }
 
-        return description.Substring(0, maxLength) + "..."; // Przytnij do maxLength i dodaj "..."
+        return description.Substring(0, maxLength) + "..."; 
     }
 
-
-    // Method to sort by game name
     private void SortByGameName()
     {
         SortBy(nameof(GameModel.GameName));
@@ -733,14 +699,14 @@ else
         {
             if (sortClickCount == 1)
             {
-                return "background-color: green; color: white;"; // Green background on first click
+                return "background-color: green; color: white;"; 
             }
             else if (sortClickCount == 2)
             {
-                return "background-color: red; color: white;"; // Red background on second click
+                return "background-color: red; color: white;"; 
             }
         }
-        return "background-color: #007bff; color: white;"; // Default blue background
+        return "background-color: #007bff; color: white;"; 
     }
 
     private bool IsGameOwnedByUser(int gameId)

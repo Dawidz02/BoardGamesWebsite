@@ -153,15 +153,24 @@
     /* Add star styling */
     .skill-level-bar {
         display: flex;
-        gap: 1px;
-        margin-top: 8px;
-        margin-bottom: 8px;
+        gap: 4px;
+        margin-top: 1px;
+        margin-bottom: 10px;
+    }
+
+    .skill-level-horizontal-bar {
+        display: flex;
+        gap: 5px;
+        margin: 10px 0;
+        justify-content: center;
+        align-items: center;
     }
 
     .skill-level-segment {
-        flex: 1;
+        width: 30px;
+        height: 30px;
         text-align: center;
-        padding: 5px 0;
+        line-height: 30px;
         border: 1px solid #ddd;
         border-radius: 5px;
         background-color: #f9f9f9;
@@ -169,10 +178,7 @@
         transition: background-color 0.3s, color 0.3s;
     }
 
-        .skill-level-segment:hover {
-            background-color: #e0e0e0;
-        }
-
+        /* Kolory w zależności od poziomu */
         .skill-level-segment.low {
             background-color: red;
             color: white;
@@ -188,11 +194,17 @@
             color: white;
         }
 
+        /* Aktywne segmenty */
         .skill-level-segment.selected {
             font-weight: bold;
-            border: 2px solid black; /* Dodatkowe wyróżnienie dla wybranego poziomu */
+            border: 2px solid black; /* Wyróżnienie dla aktywnego */
         }
-
+    /* Powiększanie checkboxa */
+    input[type="checkbox"] {
+        margin-left: 10px;
+        transform: scale(1.5); /* Zwiększa rozmiar checkboxa */
+        margin-right: 10px; /* Możesz dostosować margines */
+    }
 </style>
 
 <h3>My Games</h3>
