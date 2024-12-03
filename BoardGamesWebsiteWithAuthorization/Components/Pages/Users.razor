@@ -149,14 +149,14 @@ else
                 <div class="user-box">
                     <img src="@(!string.IsNullOrEmpty(u.UserPhoto) ? u.UserPhoto : "path/to/default-image.jpg")" alt="User Photo" />
 
-                    <div class="card-title">@HighlightText(u.WebUserName, searchTerm)</div>
+                    <div class="card-title">@HighlightText(u.WebUserName ?? "Unknown", searchTerm)</div>
                     <div class="card-text">
-                        <span>@HighlightText(u.Name, searchTerm)</span>
-                        <span>@HighlightText(u.SecondName, searchTerm)</span>
+                        <span>@HighlightText(u.Name ?? "No Name", searchTerm)</span>
+                        <span>@HighlightText(u.SecondName ?? "No Surname", searchTerm)</span>
                     </div>
-                    <div class="card-text">Age: @(DateTime.Today.Year - (u.DateOfBirth?.Year ?? 0))</div>
-                    <div class="card-text">Address: @u.Adress</div>
-                    <div class="card-text">Preferred Localization: @u.PrefferedLocalization</div>
+                    <div class="card-text">Age: @(u.DateOfBirth.HasValue ? DateTime.Today.Year - u.DateOfBirth.Value.Year : "Unknown")</div>
+                    <div class="card-text">Address: @(u.Adress ?? "No Address")</div>
+                    <div class="card-text">Preferred Localization: @(u.PrefferedLocalization ?? "Not Specified")</div>
 
                     <div class="button-container">
                         @if (isFriend)
@@ -218,9 +218,9 @@ else
         get
         {
             var filteredUsers = users
-                .Where(u => u.WebUserName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                            u.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                            u.SecondName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+    .Where(u => (u.WebUserName ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (u.Name ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (u.SecondName ?? string.Empty).Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
@@ -303,7 +303,7 @@ else
     {
         if (string.IsNullOrEmpty(searchQuery) || string.IsNullOrEmpty(text))
         {
-            return (MarkupString)text;
+            return (MarkupString)(text ?? string.Empty);
         }
 
         var highlightedText = new StringBuilder();
@@ -313,9 +313,8 @@ else
             if (queryIndex < searchQuery.Length &&
                 char.ToLower(text[i]) == char.ToLower(searchQuery[queryIndex]))
             {
-                // Jeśli litera pasuje do wyszukiwanego hasła, pogrub ją i podświetl
                 highlightedText.Append($"<span class='highlight'>{text[i]}</span>");
-                queryIndex++; // Przejdź do kolejnej litery wyszukiwanego hasła
+                queryIndex++;
             }
             else
             {
